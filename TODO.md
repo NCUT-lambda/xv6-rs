@@ -1,0 +1,5 @@
+- [x] 构建支持 QEMU 标准输出的最小系统。
+  - [x] 移除标准库依赖，实现 panic_handler，生成 riscv64gc-unknown-none-elf 程序。
+  - [x] 内核第一条指令，重写链接脚本，运行到 QEMU。
+  - [x] 设置堆栈以支持 rust 函数调用。
+  - [x] 实现标准输出，重写 panic_handler。
