@@ -6,15 +6,29 @@
 mod lang_items;
 mod sbi;
 mod console;
+mod riscv;
 
 use core::arch::global_asm;
+use core::arch::asm;
+
+#[no_mangle]
+pub static stack: usize = 0;
 
 global_asm!(include_str!("entry.asm"));
 
+fn test() {
+    unsafe {
+        asm! (
+			"la a0, stack"
+        );
+    }
+}
+ 
 #[no_mangle]
-pub fn rust_main() -> ! {
+pub fn main() {
 	clear_bss();
 	println!("Hello World!");
+	test();
 	panic!("Shutdown machine!");
 }
 

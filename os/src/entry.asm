@@ -2,8 +2,9 @@
 	.globl _start
 
 _start:
+	la sp, stack
 	la sp, boot_stack_top
-	call rust_main
+	call main
 
 	.section .bss.stack
 	.globl boot_stack_lower_bound

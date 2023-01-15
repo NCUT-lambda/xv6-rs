@@ -3,11 +3,11 @@ KERNEL_ELF = target/riscv64gc-unknown-none-elf/release/os
 KERNEL_BIN = $(KERNEL_ELF).bin
 SRC = src/*
 
-build : $(SRC)
-	cargo build --release && \
-	rust-objcopy $(KERNEL_ELF) -O binary $(KERNEL_BIN)
+$(KERNEL_ELF) : $(SRC)
+	cargo build --release
 
-$(KERNEL_BIN) : build
+$(KERNEL_BIN) : $(KERNEL_ELF)
+	rust-objcopy $(KERNEL_ELF) -O binary $(KERNEL_BIN)
 
 qemu : $(KERNEL_BIN)
 	qemu-system-riscv64 \
