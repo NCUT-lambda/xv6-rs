@@ -1,2 +1,2 @@
-os/Cargo.lock
-os/target
+kernel/Cargo.lock
+kernel/target
