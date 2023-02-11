@@ -2,7 +2,6 @@
 	.globl _start
 
 _start:
-	la sp, stack
 	la sp, boot_stack_top
 	call main
 

@@ -7,9 +7,9 @@ mod lang_items;
 mod sbi;
 mod console;
 
-#[no_mangle]
-pub static stack: usize = 0;
- 
+use core::arch::global_asm;
+global_asm!(include_str!("entry.asm"));
+
 #[no_mangle]
 pub fn main() {
 	clear_bss();
@@ -17,11 +17,10 @@ pub fn main() {
 	panic!("Shutdown machine!");
 }
 
-// 初始化 .bss 数据段
+// init .bss segment.
 fn clear_bss() {
+	// import external symbols.
 	extern "C" {
-		// 并不存在这两个外部函数
-		// 这里只是引用linker.ld里的符号以便使用
 		fn sbss();
 		fn ebss();
 	}

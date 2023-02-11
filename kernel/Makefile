@@ -1,27 +1,29 @@
 BOOTLOADER = ../bootloader/rustsbi-qemu.bin
-KERNEL_ELF = target/riscv64gc-unknown-none-elf/release/os
+KERNEL_ELF = target/riscv64gc-unknown-none-elf/release/kernel
 KERNEL_BIN = $(KERNEL_ELF).bin
 SRC = src/*
+
+KERNEL_ENTRY_PA = 0x80200000
 
 $(KERNEL_ELF) : $(SRC)
 	cargo build --release
 
 $(KERNEL_BIN) : $(KERNEL_ELF)
-	rust-objcopy $(KERNEL_ELF) -O binary $(KERNEL_BIN)
+	rust-objcopy $(KERNEL_ELF) --binary-architecture=riscv64 --strip-all -O binary $@
 
 qemu : $(KERNEL_BIN)
 	qemu-system-riscv64 \
     -machine virt \
     -nographic \
     -bios $(BOOTLOADER) \
-    -device loader,file=$(KERNEL_BIN),addr=0x80200000
+    -device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)
 
 qemu-gdb : $(KERNEL_BIN)
 	qemu-system-riscv64 \
     -machine virt \
     -nographic \
     -bios $(BOOTLOADER) \
-    -device loader, file=$(KERNEL_BIN),addr=0x80200000 \
+    -device loader, file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA) \
     -s -S	// Default remote debug port is 1234.
 
 clean :
