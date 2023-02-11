@@ -2,7 +2,7 @@
 #![feature(linkage)]
 #![feature(panic_info_message)]
 
-mod console;
+pub mod console;
 mod lang_items;
 mod syscall;
 

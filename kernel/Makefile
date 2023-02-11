@@ -3,13 +3,15 @@ KERNEL_ELF = target/riscv64gc-unknown-none-elf/release/kernel
 KERNEL_BIN = $(KERNEL_ELF).bin
 SRC = src/*
 
+OBJCOPY = rust-objcopy --binary--architecture=riscv64
+
 KERNEL_ENTRY_PA = 0x80200000
 
 $(KERNEL_ELF) : $(SRC)
 	cargo build --release
 
 $(KERNEL_BIN) : $(KERNEL_ELF)
-	rust-objcopy $(KERNEL_ELF) --binary-architecture=riscv64 --strip-all -O binary $@
+	OBJCOPY $(KERNEL_ELF) --strip-all -O binary $@
 
 qemu : $(KERNEL_BIN)
 	qemu-system-riscv64 \
