@@ -1,5 +1,5 @@
 	.section .text.entry
-	.globl _start
+	.global _start
 
 _start:
 	la sp, boot_stack_top
