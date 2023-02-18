@@ -22,7 +22,12 @@ pub fn init() {
 }
 
 #[no_mangle]
-pub fn user_trap_handler(cx: &mut TrapContext) {
+pub fn user_trap_handler(cx: &mut TrapContext) -> &mut TrapContext{
+	if sstatus::read().spp() != SPP::User {
+		panic!("user_trap_handler: not from user mode");
+	}
+
+
     let scause = scause::read();
     let stval = stval::read();
     match scause.cause() {
@@ -46,6 +51,7 @@ pub fn user_trap_handler(cx: &mut TrapContext) {
             );
         }
     }
+	cx
 }
 
 pub fn user_trap_return(cx_addr: usize) {

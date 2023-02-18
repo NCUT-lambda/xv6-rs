@@ -1,31 +1,36 @@
-USER_DIR = "../user"
+K := .
+U := ../user
 
-BOOTLOADER = ../bootloader/rustsbi-qemu.bin
-KERNEL_ELF = target/riscv64gc-unknown-none-elf/release/kernel
+BOOTLOADER = $K/../bootloader/rustsbi-qemu.bin
+KERNEL_ELF = $K/target/riscv64gc-unknown-none-elf/release/kernel
 KERNEL_BIN = $(KERNEL_ELF).bin
-SRC = src/* src/*/*
 
 OBJCOPY = rust-objcopy --binary-architecture=riscv64
 OBJDUMP = rust-objdump
 
 KERNEL_ENTRY_PA = 0x80200000
 
-$(KERNEL_ELF) : $(SRC)
-	@cd $(USER_DIR) && make build
+user-build :
+	@cd $U && make build
+
+user-clean :
+	@cd $U && make clean
+
+kernel-elf : user-build
 	cargo build --release
-	$(OBJDUMP) -S $@ > kernel.asm
 
-$(KERNEL_BIN) : $(KERNEL_ELF)
-	$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
+kernel-bin : kernel-elf
+	$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $(KERNEL_BIN)
 
-qemu : $(KERNEL_BIN)
+
+qemu : kernel-bin
 	qemu-system-riscv64 \
     -machine virt \
     -nographic \
     -bios $(BOOTLOADER) \
     -device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)
 
-qemu-gdb : $(KERNEL_BIN)
+qemu-gdb : kernel
 	qemu-system-riscv64 \
     -machine virt \
     -nographic \
@@ -33,7 +38,6 @@ qemu-gdb : $(KERNEL_BIN)
     -device loader, file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA) \
     -s -S
 
-clean:
+clean: user-clean
 	cargo clean
 	-rm kernel.asm
-	@cd $(USER_DIR) && make clean

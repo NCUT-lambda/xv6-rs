@@ -1,6 +1,8 @@
 //! File and filesystem-related syscalls
 
+const FD_SDTIN: usize = 0;
 const FD_STDOUT: usize = 1;
+const FD_STDERR: usize = 2;
 
 /// write buf of length `len`  to a file with `fd`
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {

@@ -37,9 +37,9 @@ user_trap:
 	mv a0, sp
 
 	#jump to user_trap_handler() not return
-	j user_trap_handler
+	call user_trap_handler
 
-
+# user_trap_handler() will return here
 user_return:
 	# now a0->kernel stack
 	# move a0 to sp

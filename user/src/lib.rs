@@ -1,6 +1,7 @@
 #![no_std]
 #![feature(linkage)]
 #![feature(panic_info_message)]
+#![allow(unused)]
 
 pub mod console;
 mod lang_items;
@@ -12,7 +13,6 @@ mod syscall;
 pub extern "C" fn _start() -> ! {
 	clear_bss();
 	let ret = main();
-	println!("main finish");
 	exit(ret);
 	panic!("unreachable after sys_exit!");
 }

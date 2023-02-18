@@ -1,22 +1,20 @@
-APP_DIR = src/bin
-TARGET_DIR = target/riscv64gc-unknown-none-elf/release
-
-APPS = $(wildcard $(APP_DIR)/*.rs)
-ELFS = $(patsubst $(APP_DIR)/%.rs, $(TARGET_DIR)/%, $(APPS))
-BINS = $(patsubst $(APP_DIR)/%.rs, $(TARGET_DIR)/%.bin, $(APPS))
+TARGET := riscv64gc-unknown-none-elf
+MODE := release
+APP_DIR := src/bin
+TARGET_DIR := target/$(TARGET)/$(MODE)
+APPS := $(wildcard $(APP_DIR)/*.rs)
+ELFS := $(patsubst $(APP_DIR)/%.rs, $(TARGET_DIR)/%, $(APPS))
+BINS := $(patsubst $(APP_DIR)/%.rs, $(TARGET_DIR)/%.bin, $(APPS))
 
 OBJCOPY = rust-objcopy --binary-architecture=riscv64
 
-$(ELFS) : $(APPS)
+elf :
 	cargo build --release
 
-$(BINS) : $(ELFS)
+binary : elf
 	$(foreach elf, $(ELFS), $(OBJCOPY) $(elf) --strip-all -O binary $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.bin, $(elf));)
 
-build : $(BINS)
+build : binary
 
-test : $(BINS)
-	@$(foreach bin, $(BINS), echo "--------------------"; echo "test: $(patsubst $(TARGET_DIR)/%.bin, %, $(bin))"; qemu-riscv64 $(patsubst $(TARGET_DIR)/%.bin, $(TARGET_DIR)/%, $(bin));)
-
-clean : 
+clean :
 	cargo clean
