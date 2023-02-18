@@ -3,6 +3,8 @@
 #![feature(panic_info_message)]
 #![allow(unused)]
 
+#[path = "board/qemu.rs"]
+mod board;
 
 #[macro_use]
 mod console;

@@ -1,6 +1,6 @@
 use crate::{
     sync::UPSafeCell,
-    trap::{user_trap_return, TrapContext},
+    trap::{user_trap_return, TrapContext}, board::{QEMU_EXIT_HANDLE, QEMUExit},
 };
 use core::arch::asm;
 use lazy_static::*;
@@ -75,7 +75,7 @@ impl AppManager {
         if app_id >= self.app_num {
             println!("All applications completed!");
             println!("The machine will shutdown!");
-            panic!("Shutdown machine!");
+			QEMU_EXIT_HANDLE.exit_success();
         }
 
         println!("[kernel] Loading app_{}", app_id);
