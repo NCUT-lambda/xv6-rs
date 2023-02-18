@@ -1,6 +1,6 @@
 use crate::{
     sync::UPSafeCell,
-    trap::{trapframe::TrapFrame, usertrapret},
+    trap::{user_trap_return, TrapContext},
 };
 use core::arch::asm;
 use lazy_static::*;
@@ -33,6 +33,14 @@ impl KernelStack {
     pub fn get_sp(&self) -> usize {
         let ret = self.data.as_ptr() as usize + KSTACK_SIZE;
         ret
+    }
+    pub fn push_trapcontext(&self, cx: TrapContext) -> &'static mut TrapContext {
+        let cx_ptr = (self.get_sp() - core::mem::size_of::<TrapContext>()) as *mut TrapContext;
+
+        unsafe {
+            *cx_ptr = cx;
+        }
+        unsafe { cx_ptr.as_mut().unwrap() }
     }
 }
 
@@ -109,8 +117,12 @@ pub fn run_next_app() -> ! {
     }
     app_manager.move_to_next_app();
     drop(app_manager);
-    TrapFrame::app_init_trapframe(APP_BASE_ADDRESS, KERNEL_STACK.get_sp(), USER_STACK.get_sp());
-    usertrapret();
+
+    user_trap_return(KERNEL_STACK.push_trapcontext(TrapContext::app_init_context(
+        APP_BASE_ADDRESS,
+        USER_STACK.get_sp(),
+    )) as *const _ as usize);
+
     panic!("Unreachable in batch::run_current_app!");
 }
 

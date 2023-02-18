@@ -5,7 +5,6 @@
 
 #[macro_use]
 mod console;
-mod mem;
 mod sync;
 pub mod syscall;
 mod trap;

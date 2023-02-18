@@ -1,41 +1,34 @@
-use core::{arch::global_asm, panic};
+use core::arch::global_asm;
+
 use riscv::register::{
-    mtvec::TrapMode,
     scause::{self, Exception, Trap},
-    sepc, sstatus, stval, stvec,
+    sstatus::{self, SPP},
+    stval, stvec,
+    utvec::TrapMode,
 };
 
 use crate::{batch::run_next_app, syscall::syscall};
 
-use self::trapframe::TrapFrame;
-
-global_asm!(include_str!("trampolion.S"));
-
-pub mod trapframe;
+pub mod context;
+global_asm!(include_str!("trap.S"));
 
 pub fn init() {
     extern "C" {
-        fn uservec();
+        fn user_trap();
     }
-    unsafe { stvec::write(uservec as usize, TrapMode::Direct) }
+    unsafe {
+        stvec::write(user_trap as usize, TrapMode::Direct);
+    }
 }
 
 #[no_mangle]
-pub fn usertrap() {
-    // if sstatus::read().spp() != sstatus::SPP::User {
-	// 	println!("spp: {:#?}", sstatus::read().spp());
-    //     panic!("usertrap: not from user mode");
-    // }
-
-    let mut tf = unsafe { TrapFrame::from_trapframe() };
-    tf.epc = sepc::read();
-	println!("sepc: {}", tf.epc);
-    let scause = scause::read(); // get trap cause
-    let stval = stval::read(); // get extra value
+pub fn user_trap_handler(cx: &mut TrapContext) {
+    let scause = scause::read();
+    let stval = stval::read();
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
-            tf.epc += 4;
-            tf.x[10] = syscall(tf.x[17], [tf.x[10], tf.x[11], tf.x[12]]) as usize;
+            cx.sepc += 4;
+            cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
         }
         Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {
             println!("[kernel] PageFault in application, kernel killed it.");
@@ -55,19 +48,16 @@ pub fn usertrap() {
     }
 }
 
-#[no_mangle]
-pub fn usertrapret() {
-	println!("usertrapret");
-    let tf = unsafe { TrapFrame::from_trapframe() };
-    // restore sepc
-    sepc::write(tf.epc);
-	// println!("sepc: {}", tf.epc);
-    // unsafe { sstatus::set_spp(sstatus::SPP::User) };
-	println!("spp: {:#?}", sstatus::read().spp());
+pub fn user_trap_return(cx_addr: usize) {
+    unsafe {
+        sstatus::set_spp(SPP::User);
+    }
     extern "C" {
-        fn userret();
+        fn user_return(cx_addr: usize);
     }
     unsafe {
-        userret();
+        user_return(cx_addr);
     }
 }
+
+pub use context::TrapContext;
