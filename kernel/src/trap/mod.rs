@@ -1,8 +1,8 @@
-use core::arch::global_asm;
+use core::{arch::global_asm, panic};
 use riscv::register::{
     mtvec::TrapMode,
     scause::{self, Exception, Trap},
-    stval, stvec,
+    sepc, sstatus, stval, stvec,
 };
 
 use crate::{batch::run_next_app, syscall::syscall};
@@ -22,8 +22,15 @@ pub fn init() {
 
 #[no_mangle]
 pub fn usertrap() {
+    // if sstatus::read().spp() != sstatus::SPP::User {
+	// 	println!("spp: {:#?}", sstatus::read().spp());
+    //     panic!("usertrap: not from user mode");
+    // }
+
     let mut tf = unsafe { TrapFrame::from_trapframe() };
-	let scause = scause::read(); // get trap cause
+    tf.epc = sepc::read();
+	println!("sepc: {}", tf.epc);
+    let scause = scause::read(); // get trap cause
     let stval = stval::read(); // get extra value
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
@@ -50,10 +57,17 @@ pub fn usertrap() {
 
 #[no_mangle]
 pub fn usertrapret() {
-	extern "C" {
-		fn userret();
-	}
-	unsafe {
-		userret();
-	}
+	println!("usertrapret");
+    let tf = unsafe { TrapFrame::from_trapframe() };
+    // restore sepc
+    sepc::write(tf.epc);
+	// println!("sepc: {}", tf.epc);
+    // unsafe { sstatus::set_spp(sstatus::SPP::User) };
+	println!("spp: {:#?}", sstatus::read().spp());
+    extern "C" {
+        fn userret();
+    }
+    unsafe {
+        userret();
+    }
 }

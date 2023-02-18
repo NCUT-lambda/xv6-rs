@@ -1,3 +1,5 @@
+use riscv::register::sstatus;
+
 use crate::mem::TRAPFRAME;
 #[repr(C)]
 pub struct TrapFrame {
@@ -7,30 +9,45 @@ pub struct TrapFrame {
 }
 
 impl TrapFrame {
-    pub fn set_sp(&mut self, sp: usize) {
+    pub fn new() -> Self {
+        Self {
+            x: [0; 32],
+            epc: 0,
+            kernel_sp: 0,
+        }
+    }
+    pub fn r_sp(&self) -> usize {
+        self.x[2]
+    }
+    pub fn w_sp(&mut self, sp: usize) {
         self.x[2] = sp;
     }
     pub fn app_init_trapframe(entry: usize, ksp: usize, usp: usize) {
-		println!("in app init");
         let mut tf = Self {
             x: [0; 32],
             epc: entry,
             kernel_sp: ksp,
         };
-        tf.set_sp(usp);
-		println!("set ok!");
+        tf.w_sp(usp);
+        unsafe { sstatus::set_spp(sstatus::SPP::User) };
         unsafe {
             tf.to_trapframe();
         }
-		println!("save ok!");
     }
     unsafe fn to_trapframe(&self) {
-		core::ptr::copy(self as *const Self, TRAPFRAME as *mut Self, core::mem::size_of::<Self>());
-		println!("save success!");
-	}
-	pub unsafe fn from_trapframe() -> Self {
-		let mut tf: TrapFrame = TrapFrame { x: [0;32], epc: 0, kernel_sp: 0 };
-		core::ptr::copy(TRAPFRAME as *const Self, &mut tf, core::mem::size_of::<Self>());
-		tf
-	}
+        core::ptr::copy(
+            self as *const Self,
+            TRAPFRAME as *mut Self,
+            core::mem::size_of::<Self>(),
+        );
+    }
+    pub unsafe fn from_trapframe() -> Self {
+        let mut tf: TrapFrame = TrapFrame::new();
+        core::ptr::copy(
+            TRAPFRAME as *const Self,
+            &mut tf,
+            core::mem::size_of::<Self>(),
+        );
+        tf
+    }
 }

@@ -1,4 +1,7 @@
-use crate::{sync::UPSafeCell, trap::{trapframe::TrapFrame, usertrapret}};
+use crate::{
+    sync::UPSafeCell,
+    trap::{trapframe::TrapFrame, usertrapret},
+};
 use core::arch::asm;
 use lazy_static::*;
 
@@ -29,14 +32,14 @@ static USER_STACK: UserStack = UserStack {
 impl KernelStack {
     pub fn get_sp(&self) -> usize {
         let ret = self.data.as_ptr() as usize + KSTACK_SIZE;
-		ret
+        ret
     }
 }
 
 impl UserStack {
     pub fn get_sp(&self) -> usize {
         let ret = self.data.as_ptr() as usize + USTACK_SIZE;
-		ret
+        ret
     }
 }
 
@@ -69,7 +72,7 @@ impl AppManager {
 
         println!("[kernel] Loading app_{}", app_id);
         // clear area
-        core::slice::from_raw_parts_mut(self.app_start[app_id] as *mut u8, MAX_APP_SIZE).fill(0);
+        core::slice::from_raw_parts_mut(APP_BASE_ADDRESS as *mut u8, MAX_APP_SIZE).fill(0);
         let app_src = core::slice::from_raw_parts(
             self.app_start[app_id] as *const u8,
             self.app_start[app_id + 1] - self.app_start[app_id],
@@ -98,17 +101,17 @@ pub fn print_app_info() {
     APP_MANAGER.get_mut().print_app_info();
 }
 
-pub fn run_next_app() -> !{
+pub fn run_next_app() -> ! {
     let mut app_manager = APP_MANAGER.get_mut();
     let current_app = app_manager.get_current_app();
     unsafe {
         app_manager.load_app(current_app);
     }
-	app_manager.move_to_next_app();
-	drop(app_manager);
-	TrapFrame::app_init_trapframe(APP_BASE_ADDRESS, KERNEL_STACK.get_sp(), USER_STACK.get_sp());
-	usertrapret();
-	panic!("Unreachable in batch::run_current_app!");
+    app_manager.move_to_next_app();
+    drop(app_manager);
+    TrapFrame::app_init_trapframe(APP_BASE_ADDRESS, KERNEL_STACK.get_sp(), USER_STACK.get_sp());
+    usertrapret();
+    panic!("Unreachable in batch::run_current_app!");
 }
 
 lazy_static! {
@@ -121,7 +124,7 @@ lazy_static! {
             let app_num = app_num_ptr.read_volatile();
             let mut app_start: [usize; MAX_APP_NUM + 1] = [0; MAX_APP_NUM + 1];
             for i in 0..=app_num {
-                app_start[i] = app_num_ptr.add(1).read_volatile();
+                app_start[i] = app_num_ptr.add(i + 1).read_volatile();
             }
             AppManager {
                 app_num,

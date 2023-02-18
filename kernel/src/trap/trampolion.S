@@ -6,7 +6,7 @@
 	ld x\n, \n*8(a0)
 .endm
 
-TRAPFRAME = 0xfffffff0;
+TRAPFRAME = 0x80ffe000;
 
 .section .text
 .global uservec
@@ -25,7 +25,7 @@ uservec:
 		.set n, n+1
 	.endr
 
-	# save the user a0 in TRAPFRAM.
+	# save the user a0 in TRAPFRAME.
 	csrr t0, sscratch
 	sd t0, 10*8(a0)
 
@@ -37,7 +37,8 @@ uservec:
 .global userret
 .align 4
 userret:
-	# restore all but a0 from TRAPFRAME
+	li a0, TRAPFRAME
+	# restore all registers but a0 from TRAPFRAME
 	.set n, 1
 	.rept 9
 		LOAD_GP %n

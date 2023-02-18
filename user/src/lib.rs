@@ -11,7 +11,9 @@ mod syscall;
 #[link_section = ".text.entry"]
 pub extern "C" fn _start() -> ! {
 	clear_bss();
-	exit(main());
+	let ret = main();
+	println!("main finish");
+	exit(ret);
 	panic!("unreachable after sys_exit!");
 }
 

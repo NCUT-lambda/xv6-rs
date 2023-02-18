@@ -16,7 +16,7 @@ mod sbi;
 use core::arch::global_asm;
 
 global_asm!(include_str!("entry.asm"));
-global_asm!(include_str!("link_app.asm"));
+global_asm!(include_str!("link_app.S"));
 
 #[no_mangle]
 pub fn main() {
