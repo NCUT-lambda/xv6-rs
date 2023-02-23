@@ -18,7 +18,7 @@ for line in old:
 apps = os.listdir('src/bin')
 apps.sort()
 
-new = old
+new = list(old)
 for app in apps:
 	app = app[:app.find('.')]
 	os.system('cargo build --bin %s --release' % app)

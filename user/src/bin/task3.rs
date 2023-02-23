@@ -9,7 +9,7 @@ const MOD: usize = 1e9 as usize + 7;
 #[no_mangle]
 pub fn main() -> usize {
 	for i in 1..=10 {
-		println!("[task1] 7 power {} = {}", i, 7usize.pow(i) % MOD);
+		println!("[task3] 7 power {} = {}", i, 7usize.pow(i) % MOD);
 	}
 	0
 }
