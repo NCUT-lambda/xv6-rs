@@ -3,7 +3,9 @@ use core::fmt::{self, Write};
 
 struct Stdout;
 
+const STDIN : usize = 0;
 const STDOUT: usize = 1;
+const STDERR: usize = 2;
 
 impl Write for Stdout {
 	fn write_str(&mut self, s: &str) -> fmt::Result {

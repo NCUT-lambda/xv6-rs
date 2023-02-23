@@ -57,7 +57,7 @@ export PATH=$PATH:/path/to/qemu-7.0.0/build
 ```
 
 ### GDB 调试支持
-目前仅支持基于 QEMU 模拟器进行调试。在 os 目录下 `make qemu-gdb` 可以调试我们的内核。安装支持 riscv64 指令集的 gdb 调试器 `gdb-multiarch`。
+目前仅支持基于 QEMU 模拟器进行调试。在 kernel 目录下 `make qemu-gdb` 可以调试我们的内核。安装支持 riscv64 指令集的 gdb 调试器 `gdb-multiarch`。
 ```sh
 sudo apt-get install gdb-multiarch
 ```

@@ -4,15 +4,13 @@ use riscv::register::sstatus::Sstatus;
 pub struct TrapContext {
 	pub x: [usize; 32],
 	pub sepc: usize,
-	pub sstatus: usize
 }
 
 impl TrapContext {
 	pub fn new() -> Self {
 		Self {
 			x: [0; 32],
-			sepc: 0,
-			sstatus: 0
+			sepc: 0
 		}
 	}
 
