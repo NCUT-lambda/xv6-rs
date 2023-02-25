@@ -24,3 +24,10 @@ pub enum TaskStatus {
     Running,
     Zombie,
 }
+
+// action to transfer status of task
+#[derive(PartialEq)]
+pub enum TaskOption {
+    Suspend,
+    Kill,
+}

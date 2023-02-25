@@ -4,12 +4,14 @@
 #[macro_use]
 extern crate user;
 
-const MOD: usize = 1e9 as usize + 7;
-
 #[no_mangle]
 pub fn main() -> usize {
-    for i in 1..=10 {
-        println!("[task1] 3 power {} = {}", i, 3usize.pow(i) % MOD);
+    for i in 0..5 {
+        for _ in 0..10 {
+            print!("A");
+        }
+        println!(" [{}/5]", i + 1);
     }
+    println!("Task1 OK!");
     0
 }

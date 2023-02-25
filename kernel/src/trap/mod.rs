@@ -1,7 +1,7 @@
 use core::arch::global_asm;
 
 use riscv::register::{
-    scause::{self, Exception, Trap},
+    scause::{self, Exception, Interrupt, Trap},
     sstatus::{self, SPP},
     stval, stvec,
     utvec::TrapMode,
@@ -9,10 +9,12 @@ use riscv::register::{
 
 use crate::{
     syscall::syscall,
-    task::{run_next_task, task::TaskStatus},
+    task::{run_next_task, task::TaskOption},
+    trap::interrupt::set_next_clock_interrupt,
 };
 
 pub mod context;
+mod interrupt;
 global_asm!(include_str!("trap.S"));
 
 pub fn init() {
@@ -22,10 +24,12 @@ pub fn init() {
     unsafe {
         stvec::write(user_trap as usize, TrapMode::Direct);
     }
+    interrupt::enable_clock_interrupt();
+    set_next_clock_interrupt();
 }
 
 #[no_mangle]
-pub fn user_trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
+pub fn user_trap_handler(cx: &mut TrapContext) {
     if sstatus::read().spp() != SPP::User {
         panic!("user_trap_handler: not from user mode");
     }
@@ -39,11 +43,15 @@ pub fn user_trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
         }
         Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {
             println!("[kernel] PageFault in application, kernel killed it.");
-            run_next_task(crate::task::task::TaskStatus::Zombie)
+            run_next_task(TaskOption::Kill)
         }
         Trap::Exception(Exception::IllegalInstruction) => {
             println!("[kernel] IllegalInstruction in application, kernel killed it.");
-            run_next_task(TaskStatus::Zombie)
+            run_next_task(TaskOption::Kill)
+        }
+        Trap::Interrupt(Interrupt::SupervisorTimer) => {
+            set_next_clock_interrupt();
+            run_next_task(TaskOption::Suspend);
         }
         _ => {
             panic!(
@@ -54,7 +62,6 @@ pub fn user_trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
             );
         }
     }
-    cx
 }
 
 pub fn user_trap_return() {
@@ -70,3 +77,5 @@ pub fn user_trap_return() {
 }
 
 pub use context::TrapContext;
+
+use self::interrupt::{enable_clock_interrupt, unable_clock_interrupt};

@@ -11,7 +11,7 @@ use self::{
     context::TaskContext,
     loader::{get_app_num, init_app_context},
     param::MAX_APP_NUM,
-    task::{TaskControlBlock, TaskStatus},
+    task::{TaskControlBlock, TaskOption, TaskStatus},
 };
 
 global_asm!(include_str!("switch.S"));
@@ -109,13 +109,13 @@ pub fn run_first_task() {
     TASK_MANAGER.run_first_task();
 }
 
-pub fn run_next_task(status: TaskStatus) {
-    match status {
-        TaskStatus::Runable => {
+pub fn run_next_task(action: TaskOption) {
+    match action {
+        TaskOption::Suspend => {
             TASK_MANAGER.mark_current_runnable();
             TASK_MANAGER.run_next_task();
         }
-        TaskStatus::Zombie => {
+        TaskOption::Kill => {
             TASK_MANAGER.mark_current_zombie();
             TASK_MANAGER.run_next_task();
         }
