@@ -19,7 +19,10 @@ user-build :
 user-clean :
 	@cd $U && make clean
 
-kernel-elf : user-build
+fmt :
+	cargo fmt
+
+kernel-elf : fmt user-build
 	cargo build --release
 
 kernel-bin : kernel-elf

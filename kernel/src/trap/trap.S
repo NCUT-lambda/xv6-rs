@@ -41,9 +41,6 @@ user_trap:
 
 # user_trap_handler() will return here
 user_return:
-	# now a0->kernel stack
-	# move a0 to sp
-	mv sp, a0
 
 	# restore sepc
 	ld t0, 32*8(sp)

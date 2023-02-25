@@ -8,26 +8,25 @@ mod board;
 
 #[macro_use]
 mod console;
-mod sync;
-pub mod syscall;
-mod trap;
-mod batch;
 mod lang_items;
 mod sbi;
+mod sync;
+pub mod syscall;
 mod task;
+mod trap;
 
 use core::arch::global_asm;
 
-global_asm!(include_str!("entry.asm"));
+global_asm!(include_str!("entry.S"));
 global_asm!(include_str!("link_app.S"));
 
 #[no_mangle]
 pub fn main() {
     clear_bss();
     println!("[kernel] Hello world!");
-	trap::init();
-	batch::init();
-	batch::run_next_app();
+    trap::init();
+    task::load_apps();
+    task::run_first_task();
 }
 
 // init .bss segment.

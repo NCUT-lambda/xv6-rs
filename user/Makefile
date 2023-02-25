@@ -8,7 +8,10 @@ BINS := $(patsubst $(APP_DIR)/%.rs, $(TARGET_DIR)/%.bin, $(APPS))
 
 OBJCOPY = rust-objcopy --binary-architecture=riscv64
 
-elf :
+fmt :
+	cargo fmt
+
+elf : fmt
 	python3 build.py
 
 binary : elf

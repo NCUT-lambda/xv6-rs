@@ -7,7 +7,10 @@ use riscv::register::{
     utvec::TrapMode,
 };
 
-use crate::{batch::run_next_app, syscall::syscall};
+use crate::{
+    syscall::syscall,
+    task::{run_next_task, task::TaskStatus},
+};
 
 pub mod context;
 global_asm!(include_str!("trap.S"));
@@ -22,11 +25,10 @@ pub fn init() {
 }
 
 #[no_mangle]
-pub fn user_trap_handler(cx: &mut TrapContext) -> &mut TrapContext{
-	if sstatus::read().spp() != SPP::User {
-		panic!("user_trap_handler: not from user mode");
-	}
-
+pub fn user_trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
+    if sstatus::read().spp() != SPP::User {
+        panic!("user_trap_handler: not from user mode");
+    }
 
     let scause = scause::read();
     let stval = stval::read();
@@ -37,32 +39,33 @@ pub fn user_trap_handler(cx: &mut TrapContext) -> &mut TrapContext{
         }
         Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {
             println!("[kernel] PageFault in application, kernel killed it.");
-            run_next_app();
+            run_next_task(crate::task::task::TaskStatus::Zombie)
         }
         Trap::Exception(Exception::IllegalInstruction) => {
             println!("[kernel] IllegalInstruction in application, kernel killed it.");
-            run_next_app();
+            run_next_task(TaskStatus::Zombie)
         }
         _ => {
             panic!(
-                "Unsupported trap {:?}, stval = {:#x}!",
+                "Unsupported trap {:?}, stval = {:#x}, sepc = {:#x}!",
                 scause.cause(),
-                stval
+                stval,
+                riscv::register::sepc::read()
             );
         }
     }
-	cx
+    cx
 }
 
-pub fn user_trap_return(cx_addr: usize) {
+pub fn user_trap_return() {
     unsafe {
         sstatus::set_spp(SPP::User);
     }
     extern "C" {
-        fn user_return(cx_addr: usize);
+        fn user_return();
     }
     unsafe {
-        user_return(cx_addr);
+        user_return();
     }
 }
 

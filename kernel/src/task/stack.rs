@@ -1,5 +1,5 @@
-use crate::trap::TrapContext;
 use super::param::MAX_APP_NUM;
+use crate::trap::TrapContext;
 
 const KSTACK_SIZE: usize = 4096 * 2;
 const USTACK_SIZE: usize = 4096 * 2;
@@ -21,7 +21,7 @@ pub static KERNEL_STACK: [KernelStack; MAX_APP_NUM] = [KernelStack {
 }; MAX_APP_NUM];
 
 pub static USER_STACK: [UserStack; MAX_APP_NUM] = [UserStack {
-	data: [0; USTACK_SIZE]
+    data: [0; USTACK_SIZE],
 }; MAX_APP_NUM];
 
 impl KernelStack {
@@ -45,4 +45,3 @@ impl UserStack {
         ret
     }
 }
-

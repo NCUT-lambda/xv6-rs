@@ -6,12 +6,21 @@ pub struct TaskControlBlock {
     pub context: TaskContext,
 }
 
-#[derive(Clone, Copy)]
+impl TaskControlBlock {
+    pub fn new() -> Self {
+        Self {
+            status: TaskStatus::Unused,
+            context: TaskContext::new(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
 pub enum TaskStatus {
-    UNUSED,
-    USED,
-    SLEEPING,
-    RUNNABLE,
-    RUNNING,
-    ZOMBIE,
+    Unused,
+    Used,
+    Sleeping,
+    Runable,
+    Running,
+    Zombie,
 }

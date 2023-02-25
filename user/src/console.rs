@@ -3,19 +3,19 @@ use core::fmt::{self, Write};
 
 struct Stdout;
 
-const STDIN : usize = 0;
+const STDIN: usize = 0;
 const STDOUT: usize = 1;
 const STDERR: usize = 2;
 
 impl Write for Stdout {
-	fn write_str(&mut self, s: &str) -> fmt::Result {
-		write(STDOUT, s.as_bytes());
-		Ok(())
-	}
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        write(STDOUT, s.as_bytes());
+        Ok(())
+    }
 }
 
 pub fn print(args: fmt::Arguments) {
-	Stdout.write_fmt(args).unwrap();
+    Stdout.write_fmt(args).unwrap();
 }
 
 #[macro_export]
