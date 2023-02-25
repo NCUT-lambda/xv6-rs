@@ -14,6 +14,7 @@ mod trap;
 mod batch;
 mod lang_items;
 mod sbi;
+mod task;
 
 use core::arch::global_asm;
 
