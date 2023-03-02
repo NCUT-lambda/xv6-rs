@@ -5,6 +5,7 @@ pub struct UPSafeCell<T> {
 }
 
 unsafe impl<T> Sync for UPSafeCell<T> {}
+unsafe impl<T> Send for UPSafeCell<T> {}
 
 impl<T> UPSafeCell<T> {
     pub fn new(value: T) -> Self {

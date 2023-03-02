@@ -1,8 +1,8 @@
-use super::param::{MAX_PHYS_ADDR, MAX_PPN, MAX_VIRT_ADDR, MAX_VPN, PAGE_SIZE, PAGE_BITS};
+use super::param::{MAX_PHYS_ADDR, MAX_PPN, MAX_VIRT_ADDR, MAX_VPN, PAGE_BITS, PAGE_SIZE};
 
 // physical address
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct PhysAddr(usize);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PhysAddr(pub usize);
 
 // virtual address
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -65,77 +65,109 @@ impl From<PhysPageNum> for usize {
 }
 
 impl From<VirtAddr> for usize {
-	fn from(v: VirtAddr) -> usize {
-		if v.0 > MAX_VIRT_ADDR {
-			v.0 | (!MAX_VIRT_ADDR)
-		} else {
-			v.0
-		}
-	}
+    fn from(v: VirtAddr) -> usize {
+        if v.0 > MAX_VIRT_ADDR {
+            v.0 | (!MAX_VIRT_ADDR)
+        } else {
+            v.0
+        }
+    }
 }
 
 impl From<VirtPageNum> for usize {
-	fn from(v: VirtPageNum) -> usize {
-		if v.0 > MAX_VPN {
-			v.0 | (!MAX_VPN)
-		} else {
-			v.0
-		}
-	}
+    fn from(v: VirtPageNum) -> usize {
+        if v.0 > MAX_VPN {
+            v.0 | (!MAX_VPN)
+        } else {
+            v.0
+        }
+    }
 }
 
+// impl PhysAddr
 impl PhysAddr {
-	pub fn round_down(&self) -> Self {
-		Self (self.0 & (!(PAGE_SIZE - 1)))
-	}
-	pub fn round_up(&self) -> Self {
-		Self ((self.0 + PAGE_SIZE - 1) & (!(PAGE_SIZE - 1)))
-	}
-	pub fn page_offset(&self) -> usize {
-		self.0 & (PAGE_SIZE - 1)
-	}
-	pub fn aligned(&self) -> bool {
-		self.page_offset() == 0
-	}
+    pub fn add(&mut self, offset: usize) -> Self {
+        self.0 += offset;
+        *self
+    }
+    pub fn round_down(&self) -> Self {
+        Self(self.0 & (!(PAGE_SIZE - 1)))
+    }
+    pub fn round_up(&self) -> Self {
+        Self((self.0 + PAGE_SIZE - 1) & (!(PAGE_SIZE - 1)))
+    }
+    pub fn page_offset(&self) -> usize {
+        self.0 & (PAGE_SIZE - 1)
+    }
+    pub fn aligned(&self) -> bool {
+        self.page_offset() == 0
+    }
 }
 
+// impl VirtAddr
 impl VirtAddr {
-	pub fn round_down(&self) -> Self {
-		Self (self.0 & (!(PAGE_SIZE - 1)))
-	}
-	pub fn round_up(&self) -> Self {
-		Self ((self.0 + PAGE_SIZE - 1) & (!(PAGE_SIZE - 1)))
-	}
-	pub fn page_offset(&self) -> usize {
-		self.0 & (PAGE_SIZE - 1)
-	}
-	pub fn aligned(&self) -> bool {
-		self.page_offset() == 0
-	}
+    pub fn add(&mut self, offset: usize) -> Self {
+        self.0 += offset;
+        *self
+    }
+    pub fn round_down(&self) -> Self {
+        Self(self.0 & (!(PAGE_SIZE - 1)))
+    }
+    pub fn round_up(&self) -> Self {
+        Self((self.0 + PAGE_SIZE - 1) & (!(PAGE_SIZE - 1)))
+    }
+    pub fn page_offset(&self) -> usize {
+        self.0 & (PAGE_SIZE - 1)
+    }
+    pub fn aligned(&self) -> bool {
+        self.page_offset() == 0
+    }
+}
+
+impl PhysPageNum {
+    pub fn page_clear(&self) {
+        let ptr: *mut u8 = PhysAddr::from(*self).into();
+        unsafe {
+            ptr.write_bytes(0, PAGE_SIZE);
+        }
+    }
 }
 
 // between physical address and physical page number
 impl From<PhysAddr> for PhysPageNum {
-	fn from(v: PhysAddr) -> Self {
-		Self (usize::from(v.round_down()) >> PAGE_BITS)
-	}
+    fn from(v: PhysAddr) -> Self {
+        Self(usize::from(v.round_down()) >> PAGE_BITS)
+    }
 }
 
 impl From<PhysPageNum> for PhysAddr {
-	fn from(v: PhysPageNum) -> Self {
-		Self (usize::from(v.0) << PAGE_BITS)
-	}
+    fn from(v: PhysPageNum) -> Self {
+        Self(usize::from(v.0) << PAGE_BITS)
+    }
 }
 
 // between virtual address and virtual page number
 impl From<VirtAddr> for VirtPageNum {
-	fn from(v: VirtAddr) -> Self {
-		Self (usize::from(v.round_down()) >> PAGE_BITS)
-	}
+    fn from(v: VirtAddr) -> Self {
+        Self(usize::from(v.round_down()) >> PAGE_BITS)
+    }
 }
 
 impl From<VirtPageNum> for VirtAddr {
-	fn from(v: VirtPageNum) -> Self {
-		Self (usize::from(v.0) << PAGE_BITS)
-	}
+    fn from(v: VirtPageNum) -> Self {
+        Self(usize::from(v.0) << PAGE_BITS)
+    }
+}
+
+// between physical address and *mut T
+impl<T> From<*mut T> for PhysAddr {
+    fn from(v: *mut T) -> Self {
+        Self(v as usize)
+    }
+}
+
+impl<T> Into<*mut T> for PhysAddr {
+    fn into(self) -> *mut T {
+        self.0 as *mut T
+    }
 }

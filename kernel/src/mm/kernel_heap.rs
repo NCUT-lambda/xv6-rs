@@ -21,7 +21,7 @@ pub fn init_heap() {
     }
 }
 
-pub fn heap_test() {
+pub fn kernel_heap_test() {
     use alloc::boxed::Box;
     use alloc::vec::Vec;
     extern "C" {
@@ -42,5 +42,5 @@ pub fn heap_test() {
     }
     assert!(bss_range.contains(&(v.as_ptr() as usize)));
     drop(v);
-    println!("heap_test passed!");
+    println!("kernel heap test passed!");
 }

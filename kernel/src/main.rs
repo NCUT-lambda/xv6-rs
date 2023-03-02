@@ -29,7 +29,9 @@ pub fn main() {
     println!("[kernel] Hello world!");
     trap::init();
     mm::init_heap();
-    mm::heap_test();
+    mm::kernel_heap_test();
+    mm::kinit();
+    mm::page_allocator_test();
     task::load_apps();
     task::run_first_task();
 }
