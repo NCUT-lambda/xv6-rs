@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(panic_info_message)]
 #![allow(unused)]
+#![feature(alloc_error_handler)]
 
 #[path = "board/qemu.rs"]
 mod board;
@@ -9,6 +10,7 @@ mod board;
 #[macro_use]
 mod console;
 mod lang_items;
+mod mm;
 mod sbi;
 mod sync;
 pub mod syscall;
@@ -16,6 +18,7 @@ mod task;
 mod trap;
 
 use core::arch::global_asm;
+extern crate alloc;
 
 global_asm!(include_str!("entry.S"));
 global_asm!(include_str!("link_app.S"));
@@ -25,6 +28,8 @@ pub fn main() {
     clear_bss();
     println!("[kernel] Hello world!");
     trap::init();
+    mm::init_heap();
+    mm::heap_test();
     task::load_apps();
     task::run_first_task();
 }
