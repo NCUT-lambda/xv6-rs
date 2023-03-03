@@ -77,5 +77,3 @@ pub fn user_trap_return() {
 }
 
 pub use context::TrapContext;
-
-use self::interrupt::{enable_clock_interrupt, unable_clock_interrupt};

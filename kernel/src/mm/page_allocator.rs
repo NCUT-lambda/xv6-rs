@@ -76,10 +76,27 @@ impl PageAllocator {
                 Some(PhysAddr::from(head))
             }
         } else {
-            let head = self.next;
+            let current = self.next;
             self.next.add(PAGE_SIZE);
-            Some(PhysAddr::from(head))
+            Some(PhysAddr::from(current))
         }
+        // another method to do this
+
+        // if self.freelist.is_null() {
+        //     if self.next < self.end {
+        //         let current = self.next;
+        //         self.next.add(PAGE_SIZE);
+        //         Some(PhysAddr::from(current))
+        //     } else {
+        //         None
+        //     }
+        // } else {
+        //     let head = self.freelist;
+        //     unsafe {
+        //         self.freelist = (*head).next;
+        //     }
+        //     Some(PhysAddr::from(head))
+        // }
     }
 }
 
@@ -129,6 +146,12 @@ fn kfree(pa: PhysAddr) {
 
 pub fn page_allocator_test() {
     let mut v: Vec<PageTracker> = Vec::new();
+    for i in 0..5 {
+        let page = kalloc().unwrap();
+        println!("{:?}", page);
+        v.push(page);
+    }
+    v.clear();
     for i in 0..5 {
         let page = kalloc().unwrap();
         println!("{:?}", page);

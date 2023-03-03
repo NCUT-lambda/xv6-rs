@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
-#![allow(unused)]
+// #![allow(unused)]
 #![feature(alloc_error_handler)]
 
 #[path = "board/qemu.rs"]
@@ -10,7 +10,7 @@ mod board;
 #[macro_use]
 mod console;
 mod lang_items;
-mod mm;
+mod mem;
 mod sbi;
 mod sync;
 pub mod syscall;
@@ -28,10 +28,10 @@ pub fn main() {
     clear_bss();
     println!("[kernel] Hello world!");
     trap::init();
-    mm::init_heap();
-    mm::kernel_heap_test();
-    mm::kinit();
-    mm::page_allocator_test();
+    mem::init_heap();
+    mem::kernel_heap_test();
+    mem::kinit();
+    mem::page_allocator_test();
     task::load_apps();
     task::run_first_task();
 }

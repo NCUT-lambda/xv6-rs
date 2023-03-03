@@ -1,7 +1,7 @@
 use super::param::{MAX_PHYS_ADDR, MAX_PPN, MAX_VIRT_ADDR, MAX_VPN, PAGE_BITS, PAGE_SIZE};
 
 // physical address
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PhysAddr(pub usize);
 
 // virtual address
@@ -86,6 +86,9 @@ impl From<VirtPageNum> for usize {
 
 // impl PhysAddr
 impl PhysAddr {
+    pub fn offset(&mut self, offset: usize) -> Self {
+        Self::from(self.0 + offset)
+    }
     pub fn add(&mut self, offset: usize) -> Self {
         self.0 += offset;
         *self
@@ -130,6 +133,18 @@ impl PhysPageNum {
         unsafe {
             ptr.write_bytes(0, PAGE_SIZE);
         }
+    }
+}
+
+impl VirtPageNum {
+    pub fn indexes(&self) -> [usize; 3] {
+        let mut bits = self.0;
+        let mut idx = [0usize; 3];
+        for i in (0..3).rev() {
+            idx[i] = bits & ((1 << 9) - 1);
+            bits >>= 9;
+        }
+        idx
     }
 }
 
