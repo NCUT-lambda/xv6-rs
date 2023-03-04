@@ -5,14 +5,13 @@ use crate::sync::UPSafeCell;
 use super::{
     address::{PhysAddr, VirtAddr, VirtPageNum},
     page_table::{PTEFlags, PageTable},
-    param::{KERNELBASE, PAGE_BITS, PAGE_SIZE, PHYSTOP, TRAMPOLINE},
+    param::{KERNELBASE, PAGE_BITS, PAGE_SIZE, PHYSTOP, TRAMPOLINE, TRAPFRAME},
 };
 use lazy_static::*;
 use riscv::register::satp;
 
 extern "C" {
     fn etext();
-    fn ekernel();
     fn trampoline();
 }
 
@@ -27,8 +26,7 @@ impl KernelSpace {
         }
     }
     pub fn init(&mut self) {
-        self.pgtbl.ppn.zero();
-        println!("zero success!");
+        self.pgtbl.ppn().zero();
 
         // map kernel text executable and read-only
         self.pgtbl.map_range(

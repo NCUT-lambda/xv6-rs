@@ -5,10 +5,10 @@ use core::fmt::{self, Debug, Formatter};
 use crate::param::SIZEOF_USIZE;
 
 use super::{
-    address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum},
+    address::{PhysPageNum, VirtAddr, VirtPageNum},
     kalloc,
     page_allocator::PageTracker,
-    param::{MAX_PPN, MAX_VIRT_ADDR, MAX_VPN, PTE_FLAGS_BITS, PTE_NUM_PER_PAGE},
+    param::{MAX_PPN, MAX_VPN, PTE_FLAGS_BITS},
 };
 
 bitflags! {
@@ -34,21 +34,12 @@ impl Debug for PageTableEntry {
     }
 }
 
-impl From<PhysPageNum> for PageTableEntry {
-    fn from(ppn: PhysPageNum) -> Self {
-        Self(ppn.get() << 10)
-    }
-}
-
 impl PageTableEntry {
     pub fn empty() -> Self {
         Self(0)
     }
     pub fn new(ppn: PhysPageNum, flags: PTEFlags) -> Self {
         Self((ppn.get() << PTE_FLAGS_BITS) | flags.bits() as usize)
-    }
-    pub fn get(&self) -> usize {
-        self.0
     }
 
     pub fn ppn(&self) -> PhysPageNum {
@@ -74,23 +65,32 @@ impl PageTableEntry {
     }
 }
 
+// struct PageTable
 pub struct PageTable {
-    pub ppn: PhysPageNum,                          // this pagetable's ppn
-    pub pages: BTreeMap<PhysPageNum, PageTracker>, // pages allocated
+    ppn: PhysPageNum,                          // this pagetable's PPN
+    pages: BTreeMap<PhysPageNum, PageTracker>, // pages allocated
 }
 
 impl PageTable {
+    // create an empty and cleaned pagetable
     pub fn empty() -> Self {
         let page = kalloc().unwrap();
         let ppn = page.get();
+        ppn.zero();
         let mut pages: BTreeMap<PhysPageNum, PageTracker> = BTreeMap::new();
         pages.insert(ppn, page);
         Self { ppn, pages }
     }
+
+    pub fn ppn(&self) -> PhysPageNum {
+        self.ppn
+    }
+    // remove a page tracker, that is to dealloc an allocated page
     pub fn remove_tracker(&mut self, ppn: PhysPageNum) {
         self.pages.remove(&ppn);
     }
 
+    // print the whole page table
     pub fn print_pagetable(&self) {
         let mut ppn = self.ppn;
         println!("pagetable: {:?}", ppn);
@@ -130,6 +130,8 @@ impl PageTable {
         println!("print kernel pagetable success!");
     }
 
+    // given a virtual page number, return its corresponding PTE
+    // doesn't alloc when pagetable page was not allocated
     pub fn walk(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         assert!(vpn.get() <= MAX_VPN);
 
@@ -149,6 +151,9 @@ impl PageTable {
         }
         res
     }
+
+    // given a virtual page number, return its corresponding PTE
+    // automatically alloc when pagetable page was not allocated
     pub fn walk_alloc(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         assert!(vpn.get() <= MAX_VPN);
 
@@ -175,14 +180,15 @@ impl PageTable {
         res
     }
 
-    // Look up a virtual address, return the physical address,
-    // or 0 if not mapped.
-    // Can only be used to look up user pages.
-    pub fn walkaddr(&self, vpn: VirtPageNum) -> Option<PhysPageNum> {
+    // given a virtual page number, return its corresponding physical page number
+    // can only be used to walk user address!
+    pub fn walk_address(&self, vpn: VirtPageNum) -> Option<PhysPageNum> {
         assert!(vpn.get() <= MAX_VPN);
 
         if let Some(pte) = self.walk(vpn) {
             if !pte.valid() {
+                None
+            } else if !pte.user_access() {
                 None
             } else {
                 Some(pte.ppn().into())
@@ -192,7 +198,8 @@ impl PageTable {
         }
     }
 
-    pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
+    // map one page
+    fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
         assert!(vpn.get() <= MAX_VPN);
         assert!(ppn.get() <= MAX_PPN);
 
@@ -203,12 +210,14 @@ impl PageTable {
         // println!("{:?}", *pte);
     }
 
+    // map a sequence of vitual memory to physical memory
     pub fn map_range(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, num: usize, flags: PTEFlags) {
         for i in 0..num {
             self.map(vpn.add(i), ppn.add(i), flags);
         }
     }
 
+    // unmap a page, we will recycle this physical page immediately
     pub fn unmap(&mut self, vpn: VirtPageNum) {
         assert!(vpn.get() <= MAX_VPN);
 
@@ -223,14 +232,9 @@ impl PageTable {
             self.unmap(vpn.add(i));
         }
     }
+
+    // CSR satp's format of SV39
     pub fn make_satp(&self) -> usize {
         (8usize << 60) | self.ppn.get()
-    }
-
-    pub fn walktest(&self) {
-        let vpn1 = VirtPageNum::new(0x80201);
-        let vpn2 = VirtPageNum::new(0x80305);
-        println!("{:?} {:?}", vpn1, self.walkaddr(vpn1));
-        println!("{:?} {:?}", vpn2, self.walkaddr(vpn2));
     }
 }

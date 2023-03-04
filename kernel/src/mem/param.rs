@@ -22,3 +22,4 @@ pub const MAX_VPN: usize = (1 << VPN_WIDTH_SV39) - 1;
 pub const KERNELBASE: usize = 0x8020_0000;
 pub const PHYSTOP: usize = 0x8080_0000;
 pub const TRAMPOLINE: usize = MAX_VIRT_SIZE - PAGE_SIZE;
+pub const TRAPFRAME: usize = TRAMPOLINE - PAGE_SIZE;

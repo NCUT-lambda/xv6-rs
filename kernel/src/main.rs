@@ -10,6 +10,7 @@ mod board;
 #[macro_use]
 mod console;
 mod lang_items;
+mod logo;
 mod mem;
 pub mod param;
 mod sbi;
@@ -27,14 +28,15 @@ global_asm!(include_str!("link_app.S"));
 #[no_mangle]
 pub fn main() {
     clear_bss();
-    println!("[kernel] Hello world!");
+    logo::print_logo();
     trap::init();
     mem::init_heap();
-    mem::kernel_heap_test();
+    // mem::kernel_heap_test();
     mem::kinit();
     // mem::page_allocator_test();
     mem::kvminit();
-    mem::print_kernel_pagetable();
+    // mem::print_kernel_pagetable();
+    println!("kvminit success!");
     task::load_apps();
     task::run_first_task();
 }
