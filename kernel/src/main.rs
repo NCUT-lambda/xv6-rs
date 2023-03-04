@@ -11,6 +11,7 @@ mod board;
 mod console;
 mod lang_items;
 mod mem;
+pub mod param;
 mod sbi;
 mod sync;
 pub mod syscall;
@@ -31,7 +32,9 @@ pub fn main() {
     mem::init_heap();
     mem::kernel_heap_test();
     mem::kinit();
-    mem::page_allocator_test();
+    // mem::page_allocator_test();
+    mem::kvminit();
+    mem::print_kernel_pagetable();
     task::load_apps();
     task::run_first_task();
 }

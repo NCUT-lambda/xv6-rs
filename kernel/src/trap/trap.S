@@ -7,6 +7,8 @@
 .endm
 
 	.section .text
+	.global trampoline
+trampoline:
 	.align 4
 	.global user_trap
 	.global user_return

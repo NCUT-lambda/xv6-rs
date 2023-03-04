@@ -1,15 +1,24 @@
 //! virtual address structure and virtual page number structure
 
 use super::super::page_table::PageTableEntry;
-use super::super::param::{MAX_VIRT_ADDR, MAX_VPN, PAGE_BITS, PAGE_SIZE, PTE_NUM_PER_PAGE};
+use super::super::param::{
+    MAX_VIRT_ADDR, MAX_VPN, PAGE_BITS, PAGE_SIZE, PTE_NUM_PER_PAGE, PTE_NUM_PER_PAGE_BITS,
+};
+use core::fmt::{self, Debug, Formatter};
 
 // virtual address structure
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VirtAddr(usize);
 
+impl Debug for VirtAddr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!("VA:{:#x}", self.0))
+    }
+}
+
 impl VirtAddr {
-    // with zero initialized
-    pub fn zero() -> Self {
+    // with empty initialized
+    pub fn empty() -> Self {
         Self(0usize)
     }
     pub fn new(va: usize) -> Self {
@@ -26,10 +35,10 @@ impl VirtAddr {
         *self
     }
 
-	// get page number
-	pub fn page_number(&self) -> usize {
-		self.get() >> PAGE_BITS
-	}
+    // get page number
+    pub fn page_number(&self) -> usize {
+        self.get() >> PAGE_BITS
+    }
     // get page offset
     pub fn page_offset(&self) -> usize {
         self.get() & (PAGE_SIZE - 1)
@@ -96,9 +105,15 @@ impl<T> Into<*mut T> for VirtAddr {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VirtPageNum(usize);
 
+impl Debug for VirtPageNum {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!("VPN:{:#x}", self.0))
+    }
+}
+
 impl VirtPageNum {
-    // with zero initialized
-    pub fn zero() -> Self {
+    // with empty initialized
+    pub fn empty() -> Self {
         Self(0usize)
     }
     pub fn new(vpn: usize) -> Self {
@@ -112,6 +127,16 @@ impl VirtPageNum {
     }
     pub fn add(&self, offset: usize) -> Self {
         Self((self.0 + offset) & MAX_VPN)
+    }
+
+    pub fn indexs(&self) -> [usize; 3] {
+        let mut idxs = [0usize; 3];
+        let mut offset = self.get();
+        for i in 0..3 {
+            idxs[i] = offset & ((1 << PTE_NUM_PER_PAGE_BITS) - 1);
+            offset >>= PTE_NUM_PER_PAGE_BITS;
+        }
+        idxs
     }
 
     pub fn get_byte_array(&self) -> &'static mut [u8] {
@@ -131,6 +156,6 @@ impl From<VirtPageNum> for VirtAddr {
 
 impl Into<VirtPageNum> for VirtAddr {
     fn into(self) -> VirtPageNum {
-        VirtPageNum::new(self.align_down().get())
+        VirtPageNum::new(self.get() >> PAGE_BITS)
     }
 }

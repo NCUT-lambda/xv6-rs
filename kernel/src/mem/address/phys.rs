@@ -1,5 +1,7 @@
 //! physical address structure and physical page number structure
 
+use core::fmt::{self, Debug, Formatter};
+
 use super::super::page_table::PageTableEntry;
 use super::super::param::{MAX_PHYS_ADDR, MAX_PPN, PAGE_BITS, PAGE_SIZE, PTE_NUM_PER_PAGE};
 
@@ -7,9 +9,15 @@ use super::super::param::{MAX_PHYS_ADDR, MAX_PPN, PAGE_BITS, PAGE_SIZE, PTE_NUM_
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PhysAddr(usize);
 
+impl Debug for PhysAddr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!("PA:{:#x}", self.0))
+    }
+}
+
 impl PhysAddr {
-    // with zero initialized
-    pub fn zero() -> Self {
+    // with empty initialized
+    pub fn empty() -> Self {
         Self(0usize)
     }
     pub fn new(pa: usize) -> Self {
@@ -95,9 +103,15 @@ impl<T> Into<*mut T> for PhysAddr {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PhysPageNum(usize);
 
+impl Debug for PhysPageNum {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!("PPN:{:#x}", self.0))
+    }
+}
+
 impl PhysPageNum {
-    // with zero initialized
-    pub fn zero() -> Self {
+    // with empty initialized
+    pub fn empty() -> Self {
         Self(0usize)
     }
     pub fn new(ppn: usize) -> Self {
@@ -113,6 +127,12 @@ impl PhysPageNum {
         Self((self.0 + offset) & MAX_PPN)
     }
 
+    pub fn zero(&self) {
+        let dst: *mut u8 = PhysAddr::from(*self).into();
+        unsafe {
+            dst.write_bytes(0, PAGE_SIZE);
+        }
+    }
     pub fn get_byte_array(&self) -> &'static mut [u8] {
         PhysAddr::from(*self).from_raw_parts_mut(PAGE_SIZE)
     }

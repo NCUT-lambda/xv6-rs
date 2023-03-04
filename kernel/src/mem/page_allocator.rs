@@ -18,9 +18,9 @@ pub struct PageTracker {
 }
 
 impl PageTracker {
-    pub fn zero() -> Self {
+    pub fn empty() -> Self {
         Self {
-            ppn: PhysPageNum::zero(),
+            ppn: PhysPageNum::empty(),
         }
     }
     pub fn new(ppn: PhysPageNum) -> Self {
@@ -48,7 +48,7 @@ impl Drop for PageTracker {
 
 // a page allocator must implement this trait
 trait PageAlloc {
-    fn zero() -> Self;
+    fn empty() -> Self;
     fn init(&mut self, start: PhysPageNum, end: PhysPageNum);
     fn alloc(&mut self) -> Option<PhysPageNum>;
     fn dealloc(&mut self, ppn: PhysPageNum);
@@ -65,10 +65,10 @@ pub struct PageAllocator {
 }
 
 impl PageAlloc for PageAllocator {
-    fn zero() -> Self {
+    fn empty() -> Self {
         Self {
-            next: PhysPageNum::zero(),
-            end: PhysPageNum::zero(),
+            next: PhysPageNum::empty(),
+            end: PhysPageNum::empty(),
             freelist: null_mut(),
         }
     }
@@ -104,7 +104,7 @@ impl PageAlloc for PageAllocator {
 
 lazy_static! {
     pub static ref PAGE_ALLOCATOR: UPSafeCell<PageAllocator> =
-        unsafe { UPSafeCell::new(PageAllocator::zero()) };
+        unsafe { UPSafeCell::new(PageAllocator::empty()) };
 }
 
 pub fn kinit() {

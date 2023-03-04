@@ -32,6 +32,7 @@ kernel-bin : kernel-elf
 
 qemu : kernel-bin
 	qemu-system-riscv64 \
+	-M 8m\
     -machine virt \
     -nographic \
     -bios $(BOOTLOADER) \
@@ -40,6 +41,7 @@ qemu : kernel-bin
 qemu-gdb : kernel-bin
 	@echo "default remote debug port is 1234."
 	qemu-system-riscv64 \
+	-M 8m\
     -machine virt \
     -nographic \
     -bios $(BOOTLOADER) \

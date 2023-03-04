@@ -1,5 +1,3 @@
-use riscv::register::sstatus::Sstatus;
-
 #[repr(C)]
 pub struct TrapContext {
     pub x: [usize; 32],

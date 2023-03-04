@@ -19,10 +19,11 @@ global_asm!(include_str!("trap.S"));
 
 pub fn init() {
     extern "C" {
-        fn user_trap();
+        fn trampoline();
     }
+
     unsafe {
-        stvec::write(user_trap as usize, TrapMode::Direct);
+        stvec::write(trampoline as usize, TrapMode::Direct);
     }
     interrupt::enable_clock_interrupt();
     set_next_clock_interrupt();
