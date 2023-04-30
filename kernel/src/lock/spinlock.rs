@@ -1,10 +1,11 @@
 use core::{
+    mem::transmute,
     ptr::null_mut,
     sync::atomic::{fence, AtomicBool, Ordering},
 };
 use riscv::register::sstatus;
 
-use crate::todo::proc::{mycpu, Cpu};
+use crate::process::cpu::{mycpu, Cpu};
 
 pub struct Spinlock {
     locked: AtomicBool,
@@ -15,7 +16,7 @@ pub struct Spinlock {
 }
 
 impl Spinlock {
-    pub fn new(name: &'static str) -> Self {
+    pub const fn new(name: &'static str) -> Self {
         Self {
             name,
             locked: AtomicBool::new(false),
@@ -33,7 +34,7 @@ impl Spinlock {
             .locked
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Acquire)
             .is_err()
-        {} // 自选等待
+        {} // 自旋等待
         fence(Ordering::SeqCst);
 
         self.cpu = mycpu();
@@ -45,7 +46,11 @@ impl Spinlock {
         }
 
         self.cpu = null_mut();
+
         fence(Ordering::SeqCst);
+
+        self.locked.store(false, Ordering::Release);
+
         pop_off();
     }
 
@@ -58,12 +63,12 @@ fn push_off() {
     let old = sstatus::read().sie();
 
     unsafe { sstatus::clear_sie() }
-    let mc = &mut unsafe { *mycpu() };
+    let mut mc: &mut Cpu = unsafe { transmute(mycpu()) };
 
     if mc.noff == 0 {
-        mc.intena = old.into();
-        mc.noff += 1;
+        mc.intena = old;
     }
+    mc.noff += 1;
 }
 
 fn pop_off() {
@@ -74,6 +79,7 @@ fn pop_off() {
     if mc.noff < 1 {
         panic!("pop_off");
     }
+    mc.noff -= 1;
     if mc.noff == 0 && mc.intena {
         unsafe { sstatus::set_sie() }
     }

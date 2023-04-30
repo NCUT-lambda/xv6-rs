@@ -3,12 +3,16 @@
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 
-use core::arch::global_asm;
+use core::{
+    arch::global_asm,
+    sync::atomic::{fence, Ordering},
+};
 
 use crate::{
     console::{consoleinit, printfinit},
     logo::print_logo,
-    todo::proc::cpuid,
+    memory::kalloc::kinit,
+    process::cpu::cpuid,
 };
 
 #[macro_use]
@@ -17,18 +21,20 @@ mod lang_items;
 mod logo;
 mod sbi;
 
-pub mod r#const;
+#[macro_use]
+pub mod riscv;
+pub mod string;
 
 pub mod allocator;
 mod lock;
-mod mem;
+mod memory;
 
-pub mod todo;
+pub mod process;
 
 global_asm!(include_str!("asm/entry.S"));
 
 #[no_mangle]
-static mut started: u64 = 0;
+static mut started: usize = 0;
 
 #[no_mangle]
 pub fn main() {
@@ -40,8 +46,10 @@ pub fn main() {
         print_logo();
         println!("xv6-rust kernel is booting...");
         println!("");
+        kinit();
     } else {
         while unsafe { started } == 0 {}
+        fence(Ordering::SeqCst);
     }
 
     panic!("Shutdown!");
