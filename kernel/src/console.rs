@@ -29,3 +29,9 @@ macro_rules! println {
         $crate::console::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
     }
 }
+
+// Rust-SBI 已经实现了，所以我们什么都不需要做
+pub fn consoleinit() {}
+
+// Rust-SBI 已经实现了，所以我们什么都不需要做
+pub fn printfinit() {}
