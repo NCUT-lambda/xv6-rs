@@ -15,7 +15,7 @@ use crate::{
         kalloc::kinit,
         kvm::{kvminit, kvminithart},
     },
-    process::cpu::cpuid,
+    process::{cpu::cpuid, proc::procinit},
 };
 
 #[macro_use]
@@ -55,6 +55,7 @@ pub fn main() {
         kinit();
         kvminit();
         kvminithart();
+        procinit();
     } else {
         while unsafe { started } == 0 {}
         fence(Ordering::SeqCst);
