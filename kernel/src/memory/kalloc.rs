@@ -5,7 +5,7 @@ use crate::{
     lock::spinlock::Spinlock,
     riscv::{Addr, PGSIZE},
     string::memset,
-    sync::upsafecell::UPSafeCell,
+    sync::upcell::UPCell,
 };
 
 use super::{memlayout::PHYSTOP, pgroundup};
@@ -73,14 +73,14 @@ impl Kmem {
 }
 
 lazy_static! {
-    static ref KMEM: UPSafeCell<Kmem> = UPSafeCell::new(Kmem::new());
+    static ref KMEM: UPCell<Kmem> = UPCell::new(Kmem::new());
 }
 
 pub fn kinit() {
-    KMEM.access_exclusive().freerange(ekernel as Addr, PHYSTOP);
+    KMEM.get_mut().freerange(ekernel as Addr, PHYSTOP);
     println!("kinit success!");
 }
 
 pub fn kalloc() -> Addr {
-    KMEM.access_exclusive().kalloc()
+    KMEM.get_mut().kalloc()
 }

@@ -13,7 +13,7 @@ use crate::{
     logo::print_logo,
     memory::{
         kalloc::kinit,
-        kvm::{kvminit, kvminithart, kvmtest},
+        kvm::{kvminit, kvminithart},
     },
     process::cpu::cpuid,
 };
@@ -22,6 +22,7 @@ use crate::{
 mod console;
 mod lang_items;
 mod logo;
+mod param;
 mod sbi;
 
 #[macro_use]

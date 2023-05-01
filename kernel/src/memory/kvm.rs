@@ -1,7 +1,7 @@
 use crate::{
     riscv::{sfence_vma, Addr, PGSIZE, PTE_R, PTE_W, PTE_X},
     string::memset,
-    sync::upsafecell::UPSafeCell,
+    sync::upcell::UPCell,
 };
 
 use super::{
@@ -53,20 +53,19 @@ impl Kvm {
         // println!("kvmmap: va: {:#x}, pa: {:#x}", va, pa);
     }
 }
-
 lazy_static! {
-    static ref KVM: UPSafeCell<Kvm> = UPSafeCell::new(Kvm::new());
+    static ref KVM: UPCell<Kvm> = UPCell::new(Kvm::new());
 }
 
 pub fn kvminit() {
-    KVM.access_exclusive().kvmmake();
+    KVM.get_mut().kvmmake();
     println!("kvminit success!");
 }
 
 pub fn kvminithart() {
     sfence_vma();
 
-    satp::write(KVM.access_exclusive().kernel_pagetable.make_satp());
+    satp::write(KVM.get_mut().kernel_pagetable.make_satp());
 
     sfence_vma();
 
@@ -77,7 +76,7 @@ pub fn kvmtest() {
     let va: [usize; 3] = [0x823f8000, KERNBASE, 0x87fff000];
     let mut pa: [usize; 3] = [0; 3];
 
-    let mut kvm = KVM.access_exclusive();
+    let mut kvm = KVM.get_mut();
 
     for i in 0..3 {
         pa[i] = kvm.kernel_pagetable.walkaddr(va[i]);
