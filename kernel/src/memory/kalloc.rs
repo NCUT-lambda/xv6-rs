@@ -1,4 +1,4 @@
-use core::ptr::{null, null_mut};
+use core::ptr::null_mut;
 use lazy_static::*;
 
 use crate::{

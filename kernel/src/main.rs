@@ -11,7 +11,10 @@ use core::{
 use crate::{
     console::{consoleinit, printfinit},
     logo::print_logo,
-    memory::{kalloc::kinit, kvm::kvminit},
+    memory::{
+        kalloc::kinit,
+        kvm::{kvminit, kvminithart, kvmtest},
+    },
     process::cpu::cpuid,
 };
 
@@ -50,6 +53,7 @@ pub fn main() {
         println!("");
         kinit();
         kvminit();
+        kvminithart();
     } else {
         while unsafe { started } == 0 {}
         fence(Ordering::SeqCst);

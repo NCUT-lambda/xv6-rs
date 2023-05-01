@@ -1,5 +1,5 @@
 use crate::{
-    riscv::{Addr, PGSIZE, PTE_R, PTE_W, PTE_X},
+    riscv::{sfence_vma, Addr, PGSIZE, PTE_R, PTE_W, PTE_X},
     string::memset,
     sync::upsafecell::UPSafeCell,
 };
@@ -10,9 +10,10 @@ use super::{
     pagetable::PagetableT,
 };
 use lazy_static::*;
+use riscv::register::satp;
 
 extern "C" {
-    fn ekernel();
+    fn etext();
     fn trampoline();
 }
 
@@ -30,7 +31,7 @@ impl Kvm {
     }
 
     fn kvmmake(&mut self) {
-        let ekernel = ekernel as Addr;
+        let etext = etext as Addr;
 
         self.kvmmap(UART0, UART0, PGSIZE, PTE_R | PTE_W);
 
@@ -38,9 +39,9 @@ impl Kvm {
 
         self.kvmmap(PLIC, PLIC, 0x400000, PTE_R | PTE_W);
 
-        self.kvmmap(KERNBASE, KERNBASE, ekernel - KERNBASE, PTE_R | PTE_X);
+        self.kvmmap(KERNBASE, KERNBASE, etext as Addr - KERNBASE, PTE_R | PTE_X);
 
-        self.kvmmap(ekernel, ekernel, PHYSTOP - ekernel, PTE_R | PTE_W);
+        self.kvmmap(etext, etext, PHYSTOP - etext, PTE_R | PTE_W);
 
         self.kvmmap(TRAMPOLINE, trampoline as Addr, PGSIZE, PTE_R | PTE_X);
     }
@@ -60,4 +61,28 @@ lazy_static! {
 pub fn kvminit() {
     KVM.access_exclusive().kvmmake();
     println!("kvminit success!");
+}
+
+pub fn kvminithart() {
+    sfence_vma();
+
+    satp::write(KVM.access_exclusive().kernel_pagetable.make_satp());
+
+    sfence_vma();
+
+    println!("kvminithart success!");
+}
+
+pub fn kvmtest() {
+    let va: [usize; 3] = [0x823f8000, KERNBASE, 0x87fff000];
+    let mut pa: [usize; 3] = [0; 3];
+
+    let mut kvm = KVM.access_exclusive();
+
+    for i in 0..3 {
+        pa[i] = kvm.kernel_pagetable.walkaddr(va[i]);
+        if pa[i] != va[i] {
+            println!("pa: {:#x}, va: {:#x}", pa[i], va[i]);
+        }
+    }
 }

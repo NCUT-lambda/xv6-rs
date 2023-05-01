@@ -18,7 +18,7 @@ fmt :
 	@cd $K && cargo fmt
 
 kernel-elf : fmt
-	cd $K && cargo build --release
+	@cd $K && cargo build --release
 
 kernel-bin : kernel-elf
 	$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $(KERNEL_BIN)
@@ -27,7 +27,7 @@ kernel-bin : kernel-elf
 
 qemu : kernel-bin
 	qemu-system-riscv64 \
-	-M 8m\
+	-M 128m\
     -machine virt \
     -nographic \
     -bios $(BOOTLOADER) \

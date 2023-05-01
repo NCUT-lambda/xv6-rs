@@ -1,7 +1,9 @@
 use core::{mem::transmute, ptr::null_mut};
 
 use crate::{
-    riscv::{pa2pte, pte2pa, px, Addr, PteT, MAXVA, NPTE, PGSIZE, PTE_U, PTE_V},
+    riscv::{
+        pa2pte, pte2pa, px, Addr, PteT, MAXVA, NPTE, PGSHIFT, PGSIZE, PTE_U, PTE_V, SATP_SV39,
+    },
     string::memset,
 };
 
@@ -36,7 +38,7 @@ impl<'a> PagetableT<'a> {
         let mut pagetable = PagetableT::addr2pagetablet(self.pagetablet2addr());
 
         for level in (1..3).rev() {
-            pte = &mut self.data[px(level, va)];
+            pte = &mut pagetable.data[px(level, va)];
             if (*pte & PTE_V) != 0 {
                 pagetable = PagetableT::addr2pagetablet(pte2pa(*pte));
             } else {
@@ -51,6 +53,15 @@ impl<'a> PagetableT<'a> {
                 memset(pa, 0, PGSIZE);
                 *pte = pa2pte(pa) | PTE_V;
             }
+            // if va == 0x87ffffff {
+            //     for i in 0..128 {
+            //         print!("{}: ", i);
+            //         for j in 0..4 {
+            //             print!("{:#x}  ", pte2pa(pagetable.data[i * 4 + j]));
+            //         }
+            //         println!("");
+            //     }
+            // }
         }
 
         &mut pagetable.data[px(0, va)]
@@ -79,14 +90,15 @@ impl<'a> PagetableT<'a> {
 
     // 映射一个虚拟页面到一个物理页面
     // 返回 true 表示成功, false 表示失败
-    pub fn mappages(&mut self, mut va: Addr, size: Addr, pa: Addr, perm: usize) -> bool {
+    pub fn mappages(&mut self, va: Addr, size: Addr, mut pa: Addr, perm: usize) -> bool {
         if size == 0 {
             panic!("mappages: size");
         }
 
         let mut a = pgrounddown(va);
         let last = pgrounddown(va + size - 1);
-        while a < last {
+        while a <= last {
+            // println!("mapping addr: {:#x}", a);
             let pte = self.walk(a, true);
             if pte == null_mut() {
                 return false;
@@ -96,8 +108,13 @@ impl<'a> PagetableT<'a> {
             }
             unsafe { *pte = pa2pte(pa) | perm | PTE_V }
             a += PGSIZE;
-            va += PGSIZE;
+            pa += PGSIZE;
         }
         true
+    }
+
+    pub fn make_satp(&self) -> usize {
+        let satp = self.pagetablet2addr();
+        SATP_SV39 | (satp >> PGSHIFT)
     }
 }
