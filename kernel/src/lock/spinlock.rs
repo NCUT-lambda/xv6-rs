@@ -72,7 +72,7 @@ fn push_off() {
 }
 
 fn pop_off() {
-    let mc = &mut unsafe { *mycpu() };
+    let mc: &mut Cpu = unsafe { transmute(mycpu()) };
     if sstatus::read().sie() {
         panic!("pop_off - interruptible");
     }

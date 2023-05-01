@@ -11,7 +11,7 @@ use core::{
 use crate::{
     console::{consoleinit, printfinit},
     logo::print_logo,
-    memory::kalloc::kinit,
+    memory::{kalloc::kinit, kvm::kvminit},
     process::cpu::cpuid,
 };
 
@@ -24,10 +24,12 @@ mod sbi;
 #[macro_use]
 pub mod riscv;
 pub mod string;
+pub mod sync;
 
 pub mod allocator;
-mod lock;
+pub mod lock;
 mod memory;
+mod trap;
 
 pub mod process;
 
@@ -47,6 +49,7 @@ pub fn main() {
         println!("xv6-rust kernel is booting...");
         println!("");
         kinit();
+        kvminit();
     } else {
         while unsafe { started } == 0 {}
         fence(Ordering::SeqCst);

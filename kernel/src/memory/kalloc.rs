@@ -1,12 +1,14 @@
 use core::ptr::{null, null_mut};
 use lazy_static::*;
 
-use crate::{console::print, lock::spinlock::Spinlock, string::memset};
-
-use super::{
-    memlayout::{PGSIZE, PHYSTOP},
-    pgroundup,
+use crate::{
+    lock::spinlock::Spinlock,
+    riscv::{Addr, PGSIZE},
+    string::memset,
+    sync::upsafecell::UPSafeCell,
 };
+
+use super::{memlayout::PHYSTOP, pgroundup};
 
 extern "C" {
     fn ekernel(); // 定义在 kernel.ld 中
@@ -30,7 +32,7 @@ impl Kmem {
         }
     }
 
-    fn freerange(&mut self, pa_start: usize, pa_end: usize) {
+    fn freerange(&mut self, pa_start: Addr, pa_end: Addr) {
         let mut pa = pgroundup(pa_start);
         while pa < pa_end - PGSIZE {
             self.kfree(pa);
@@ -38,8 +40,8 @@ impl Kmem {
         }
     }
 
-    fn kfree(&mut self, pa: usize) {
-        if pa % PGSIZE != 0 || pa < ekernel as usize || pa >= PHYSTOP {
+    fn kfree(&mut self, pa: Addr) {
+        if pa % PGSIZE != 0 || pa < ekernel as Addr || pa >= PHYSTOP {
             panic!("kfree");
         }
 
@@ -52,7 +54,7 @@ impl Kmem {
         self.lock.release();
     }
 
-    fn kalloc(&mut self) -> usize {
+    fn kalloc(&mut self) -> Addr {
         let mut r: *mut Run = null_mut();
 
         self.lock.acquire();
@@ -66,17 +68,19 @@ impl Kmem {
             memset(r as usize, 5, PGSIZE);
         }
 
-        r as usize
+        r as Addr
     }
 }
 
-static mut KMEM: Kmem = Kmem::new();
+lazy_static! {
+    static ref KMEM: UPSafeCell<Kmem> = UPSafeCell::new(Kmem::new());
+}
 
 pub fn kinit() {
-    unsafe { KMEM.freerange(ekernel as usize, PHYSTOP) }
+    KMEM.access_exclusive().freerange(ekernel as Addr, PHYSTOP);
     println!("kinit success!");
 }
 
-pub fn kalloc() -> usize {
-    unsafe { KMEM.kalloc() }
+pub fn kalloc() -> Addr {
+    KMEM.access_exclusive().kalloc()
 }

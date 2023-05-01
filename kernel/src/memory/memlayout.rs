@@ -10,21 +10,26 @@
 // 10001000 -- virtio disk
 // 80200000 -- boot ROM jumps here in machine mode
 //             -kernel loads the kernel here
-// unused RAM after 80000000.
+// unused RAM after 80200000.
 
 // the kernel uses physical memory thus:
 // 80200000 -- entry.S, then kernel text and data
 // end -- start of kernel page allocation area
 // PHYSTOP -- end RAM used by the kernel
 
-pub const MAXVA: usize = 1 << (9 + 9 + 9 + 12 - 1);
+use crate::riscv::{Addr, MAXVA, PGSIZE};
 
-pub const PGSIZE: usize = 4096;
-pub const PGSHIFT: usize = 12;
+pub const UART0: Addr = 0x10000000;
 
-pub const KERNBASE: usize = 0x80200000;
-pub const PHYSTOP: usize = 0x88000000;
+pub const VIRTIO0: Addr = 0x10001000;
 
-pub const TRAMPOLINE: usize = MAXVA - PGSIZE;
+pub const CLINT: Addr = 0x02000000;
 
-pub const TRAPFRAME: usize = TRAMPOLINE - PGSIZE;
+pub const PLIC: Addr = 0x0c000000;
+
+pub const KERNBASE: Addr = 0x80200000;
+pub const PHYSTOP: Addr = 0x88000000;
+
+pub const TRAMPOLINE: Addr = MAXVA - PGSIZE;
+
+pub const TRAPFRAME: Addr = TRAMPOLINE - PGSIZE;

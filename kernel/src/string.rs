@@ -1,4 +1,6 @@
-pub fn memset(dst: usize, c: u8, n: usize) -> usize {
+use crate::riscv::Addr;
+
+pub fn memset(dst: Addr, c: u8, n: usize) -> usize {
     unsafe { (dst as *mut u8).write_bytes(c, n) }
     dst
 }
