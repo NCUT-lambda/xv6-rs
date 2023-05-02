@@ -13,3 +13,11 @@ pub fn pgroundup(addr: usize) -> Addr {
 pub fn pgrounddown(addr: usize) -> Addr {
     addr & !(PGSIZE - 1)
 }
+
+pub fn write<T: Sized>(addr: Addr, val: T) {
+    unsafe { (addr as *mut T).write(val) }
+}
+
+pub fn read<T: Sized>(addr: Addr) -> T {
+    unsafe { (addr as *const T).read() }
+}

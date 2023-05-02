@@ -24,11 +24,14 @@ kernel-bin : kernel-elf
 	$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $(KERNEL_BIN)
 	$(OBJDUMP) -S $(KERNEL_ELF) > $K/kernel.asm
 
+CPUS := 8
 
 qemu : kernel-bin
 	qemu-system-riscv64 \
-	-M 128m\
+	-M 128m \
+	-smp $(CPUS) \
     -machine virt \
+	-global virtio-mmio.force-legacy=false \
     -nographic \
     -bios $(BOOTLOADER) \
     -device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)
@@ -36,7 +39,8 @@ qemu : kernel-bin
 qemu-gdb : kernel-bin
 	@echo "default remote debug port is 1234."
 	qemu-system-riscv64 \
-	-M 128m\
+	-M 128m \
+	-smp $(CPUS) \
     -machine virt \
     -nographic \
     -bios $(BOOTLOADER) \

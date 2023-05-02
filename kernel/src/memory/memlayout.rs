@@ -20,12 +20,21 @@
 use crate::riscv::{Addr, MAXVA, PGSIZE};
 
 pub const UART0: Addr = 0x10000000;
+pub const UART0_IRQ: usize = 10;
 
 pub const VIRTIO0: Addr = 0x10001000;
+pub const VIRTIO0_IRQ: usize = 1;
 
 pub const CLINT: Addr = 0x02000000;
 
 pub const PLIC: Addr = 0x0c000000;
+
+pub fn plic_senable(hart: usize) -> Addr {
+    PLIC + 0x2080 + hart * 0x100
+}
+pub fn plic_spriority(hart: usize) -> Addr {
+    PLIC + 0x201000 + hart * 0x2000
+}
 
 pub const KERNBASE: Addr = 0x80200000;
 pub const PHYSTOP: Addr = 0x88000000;

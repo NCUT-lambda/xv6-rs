@@ -5,7 +5,7 @@
 
 use core::{
     arch::global_asm,
-    sync::atomic::{fence, Ordering},
+    sync::atomic::{fence, AtomicBool, Ordering},
 };
 
 use crate::{
@@ -16,6 +16,7 @@ use crate::{
         kvm::{kvminit, kvminithart},
     },
     process::{cpu::cpuid, proc::procinit},
+    trap::{plicinit, plicinithart, trapinit, trapinithart},
 };
 
 #[macro_use]
@@ -29,18 +30,19 @@ mod sbi;
 pub mod riscv;
 pub mod string;
 pub mod sync;
-
 pub mod allocator;
+
 pub mod lock;
 mod memory;
 mod trap;
-
+mod fs;
+mod syscall;
+mod driver;
 pub mod process;
 
-global_asm!(include_str!("asm/entry.S"));
+global_asm!(include_str!("entry.S"));
 
-#[no_mangle]
-static mut started: usize = 0;
+static STATED: AtomicBool = AtomicBool::new(false);
 
 #[no_mangle]
 pub fn main() {
@@ -56,9 +58,17 @@ pub fn main() {
         kvminit();
         kvminithart();
         procinit();
+        trapinit();
+        trapinithart();
+        plicinit();
+        plicinithart();
+
+        STATED.store(true, Ordering::SeqCst);
     } else {
-        while unsafe { started } == 0 {}
-        fence(Ordering::SeqCst);
+        while !STATED.load(Ordering::SeqCst) {}
+
+        println!("hart {} starting...", cpuid());
+        kvminithart();
     }
 
     panic!("Shutdown!");
