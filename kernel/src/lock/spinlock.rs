@@ -59,7 +59,7 @@ impl Spinlock {
     }
 }
 
-fn push_off() {
+pub fn push_off() {
     let old = sstatus::read().sie();
 
     unsafe { sstatus::clear_sie() }
@@ -71,7 +71,7 @@ fn push_off() {
     mc.noff += 1;
 }
 
-fn pop_off() {
+pub fn pop_off() {
     let mc: &mut Cpu = unsafe { transmute(mycpu()) };
     if sstatus::read().sie() {
         panic!("pop_off - interruptible");

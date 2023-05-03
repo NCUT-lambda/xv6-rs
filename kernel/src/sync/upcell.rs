@@ -1,5 +1,7 @@
 use core::{cell::Cell, mem::transmute};
 
+// 一个能够多线程容器，但可能会存在数据竞争
+// 若要保证多线程安全，应配合 Spinlock 使用
 pub struct UPCell<T> {
     data: Cell<T>,
 }

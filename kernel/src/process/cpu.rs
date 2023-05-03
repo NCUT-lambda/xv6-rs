@@ -6,7 +6,7 @@ use super::{context::Context, proc::Proc};
 
 #[derive(Clone, Copy)]
 pub struct Cpu {
-    proc: *mut Proc,
+    pub proc: *mut Proc,
     context: Context,
     pub noff: isize,
     pub intena: bool,
