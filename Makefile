@@ -24,9 +24,12 @@ kernel-bin : kernel-elf
 	$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $(KERNEL_BIN)
 	$(OBJDUMP) -S $(KERNEL_ELF) > $K/kernel.asm
 
+user: 
+	@cd user && make build
+
 CPUS := 8
 
-qemu : kernel-bin
+qemu : kernel-bin user
 	qemu-system-riscv64 \
 	-M 128m \
 	-smp $(CPUS) \

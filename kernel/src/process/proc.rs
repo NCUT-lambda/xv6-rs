@@ -1,7 +1,13 @@
-use core::{ptr::null_mut, mem::transmute};
+use core::{mem::transmute, ptr::null_mut};
 
 use crate::{
-    lock::{spinlock::{Spinlock, push_off, pop_off}, sleeplock::Sleeplock}, memory::memlayout::kstack, param::NPROC, riscv::Addr,
+    lock::{
+        sleeplock::Sleeplock,
+        spinlock::{pop_off, push_off, Spinlock},
+    },
+    memory::memlayout::kstack,
+    param::NPROC,
+    riscv::Addr,
     sync::upcell::UPCell,
 };
 use array_macro::array;
@@ -43,10 +49,10 @@ enum ProcState {
 pub struct Proc {
     pub lock: Spinlock,
 
-	// 当使用这些时必须持有 p->lock
-    state: ProcState,		// 进程状态
-	chan: *mut Sleeplock,	// 如果非空，处于休眠态并持有睡眠锁 chan
-	pub pid: usize,				// 进程号
+    // 当使用这些时必须持有 p->lock
+    state: ProcState,     // 进程状态
+    chan: *mut Sleeplock, // 如果非空，处于休眠态并持有睡眠锁 chan
+    pub pid: usize,       // 进程号
 
     kstack: Addr,
 }
@@ -56,42 +62,42 @@ impl Proc {
         Self {
             lock: Spinlock::new("proc"),
             state: ProcState::Unused,
-			chan: null_mut(),
-			pid: 0,
+            chan: null_mut(),
+            pid: 0,
             kstack: 0,
         }
     }
 
-	fn sleep(&mut self, chan: *mut Sleeplock, lk: *mut Spinlock) {
-		let lk: &mut Spinlock = unsafe {transmute(lk)};
+    fn sleep(&mut self, chan: *mut Sleeplock, lk: *mut Spinlock) {
+        let lk: &mut Spinlock = unsafe { transmute(lk) };
 
-		// 为了改变 p->state 然后调用 sched()必须持有 p->lock
-		// 一旦持有 p->lock，就能保证不会丢失任何 wakeup，
-		// 因为 wakeup() 会尝试获取这把锁
-		// 所以可以可以释放 lk
-		// 调度器会在换下当前进程后释放 p->lock
-		// 保证不会出现进程无法唤醒的情况
-		self.lock.acquire();
-		lk.release();
-		self.chan = chan;
-		self.state = ProcState::Sleeping;
+        // 为了改变 p->state 然后调用 sched()必须持有 p->lock
+        // 一旦持有 p->lock，就能保证不会丢失任何 wakeup，
+        // 因为 wakeup() 会尝试获取这把锁
+        // 所以可以可以释放 lk
+        // 调度器会在换下当前进程后释放 p->lock
+        // 保证不会出现进程无法唤醒的情况
+        self.lock.acquire();
+        lk.release();
+        self.chan = chan;
+        self.state = ProcState::Sleeping;
 
-		sched();
+        sched();
 
-		self.chan = null_mut();
+        self.chan = null_mut();
 
-		// 重新获取原来的锁
-		self.lock.release();
-		lk.acquire();
-	}
+        // 重新获取原来的锁
+        self.lock.release();
+        lk.acquire();
+    }
 
-	fn wakeup(&mut self, chan: *mut Sleeplock) {
-		self.lock.acquire();
-		if self.state == ProcState::Sleeping && self.chan == chan {
-			self.state = ProcState::Runable;
-		}
-		self.lock.release();
-	}
+    fn wakeup(&mut self, chan: *mut Sleeplock) {
+        self.lock.acquire();
+        if self.state == ProcState::Sleeping && self.chan == chan {
+            self.state = ProcState::Runable;
+        }
+        self.lock.release();
+    }
 }
 
 lazy_static! {
@@ -108,28 +114,28 @@ pub fn procinit() {
 }
 
 pub fn myproc() -> *mut Proc {
-	push_off();
-	let c: & Cpu = unsafe {transmute(mycpu())};
-	let p = c.proc;
-	pop_off();
-	p
+    push_off();
+    let c: &Cpu = unsafe { transmute(mycpu()) };
+    let p = c.proc;
+    pop_off();
+    p
 }
 
 pub fn sched() {
-	todo!()
+    todo!()
 }
 
 pub fn sleep(chan: *mut Sleeplock, lk: *mut Spinlock) {
-	let p: &mut Proc = unsafe {transmute(myproc())};
+    let p: &mut Proc = unsafe { transmute(myproc()) };
 
-	p.sleep(chan, lk);
+    p.sleep(chan, lk);
 }
 
 pub fn wakeup(chan: *mut Sleeplock) {
-	let proc = PROC.get_mut();
-	for p in proc {
-		if (p as *mut Proc) != myproc() {
-			p.wakeup(chan);
-		}
-	}
+    let proc = PROC.get_mut();
+    for p in proc {
+        if (p as *mut Proc) != myproc() {
+            p.wakeup(chan);
+        }
+    }
 }

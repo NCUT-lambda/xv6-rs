@@ -1,6 +1,10 @@
 use core::ptr::null_mut;
 
-use crate::{lock::{spinlock::Spinlock, sleeplock::Sleeplock}, param::NBUF, sync::upcell::UPCell};
+use crate::{
+    lock::{sleeplock::Sleeplock, spinlock::Spinlock},
+    param::NBUF,
+    sync::upcell::UPCell,
+};
 use array_macro::array;
 use lazy_static::*;
 
@@ -54,4 +58,3 @@ lazy_static! {
         head: Buf::new()
     });
 }
-

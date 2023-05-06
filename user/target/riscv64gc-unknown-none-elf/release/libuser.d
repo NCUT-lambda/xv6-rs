@@ -1,0 +1,1 @@
+/home/baise/Repos/xv6-rust/user/target/riscv64gc-unknown-none-elf/release/libuser.rlib: /home/baise/Repos/xv6-rust/user/src/console.rs /home/baise/Repos/xv6-rust/user/src/lang_items.rs /home/baise/Repos/xv6-rust/user/src/lib.rs /home/baise/Repos/xv6-rust/user/src/syscall.rs

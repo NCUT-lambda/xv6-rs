@@ -28,17 +28,17 @@ mod sbi;
 
 #[macro_use]
 pub mod riscv;
+pub mod allocator;
 pub mod string;
 pub mod sync;
-pub mod allocator;
 
+mod driver;
+mod fs;
 pub mod lock;
 mod memory;
-mod trap;
-mod fs;
-mod syscall;
-mod driver;
 pub mod process;
+mod syscall;
+mod trap;
 
 global_asm!(include_str!("entry.S"));
 
