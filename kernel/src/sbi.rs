@@ -2,6 +2,8 @@
 
 use core::arch::asm;
 
+use crate::{memory::memlayout::KERNBASE, riscv::w_tp};
+
 const SBI_SET_TIMER: usize = 0;
 const SBI_CONSOLE_PUTCHAR: usize = 1;
 const SBI_CONSOLE_GETCHAR: usize = 2;
@@ -38,4 +40,11 @@ pub fn console_putchar(c: usize) {
 pub fn shutdown() -> ! {
     sbi_call(SBI_SHUTDOWN, 0, 0, 0);
     panic!("It should shutdown!");
+}
+
+pub fn start_hart(hartid: usize) {
+    for i in 0..3 {
+        sbi_rt::hart_start(i, KERNBASE, 0x1234);
+        w_tp(hartid);
+    }
 }

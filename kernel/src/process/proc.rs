@@ -1,19 +1,27 @@
 use core::{mem::transmute, ptr::null_mut};
 
 use crate::{
+    fs::{File, Inode},
     lock::{
         sleeplock::Sleeplock,
         spinlock::{pop_off, push_off, Spinlock},
     },
-    memory::memlayout::kstack,
-    param::NPROC,
+    memory::{memlayout::kstack, pagetable::PagetableT},
+    param::{NOFILE, NPROC},
     riscv::Addr,
     sync::upcell::UPCell,
+    trap::trapframe::Trapframe,
 };
+extern crate alloc;
+
+use alloc::string::String;
 use array_macro::array;
 use lazy_static::*;
 
-use super::cpu::{mycpu, Cpu};
+use super::{
+    context::Context,
+    cpu::{mycpu, Cpu},
+};
 
 struct PidCnt {
     pid_lock: Spinlock,
@@ -51,20 +59,43 @@ pub struct Proc {
 
     // 当使用这些时必须持有 p->lock
     state: ProcState,     // 进程状态
-    chan: *mut Sleeplock, // 如果非空，处于休眠态并持有睡眠锁 chan
+    chan: *mut Sleeplock, // 如果非空，处于休眠态并等待睡眠锁 chan
+    killed: bool,         // 如果为 true，进程被杀死
+    xstate: isize,        // 退出时的状态，会返回给正在等待的父进程
     pub pid: usize,       // 进程号
 
-    kstack: Addr,
+    // 当使用这个域时必须持有 wait_lock
+    parent: *mut Proc, // 父进程
+
+    // 这些是进程的私有属性，不必持有 p->lock
+    kstack: Addr,                   // 内核栈的虚拟地址
+    sz: usize,                      // 进程占用内存大小 (单位: 字节)
+    pagetable: PagetableT, // 进程页表
+    trapframe: *mut Trapframe,      // 用于切换到内核时保存用户信息
+    context: Context,               // swtch() 从这切换进程
+    ofile: [*mut File; NOFILE],     // 打开的文件
+    cwd: *mut Inode,                // 当前工作目录
+    name: String,                   // 进程名
 }
 
 impl Proc {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             lock: Spinlock::new("proc"),
             state: ProcState::Unused,
             chan: null_mut(),
+            killed: false,
+            xstate: 0,
             pid: 0,
+            parent: null_mut(),
             kstack: 0,
+            sz: 0,
+            pagetable: PagetableT::addr2pagetablet(0),
+            trapframe: null_mut(),
+            context: Context {},
+            ofile: [null_mut(); NOFILE],
+            cwd: null_mut(),
+            name: String::new()
         }
     }
 

@@ -10,11 +10,11 @@ use crate::{
 use super::{kalloc::kalloc, pgrounddown};
 
 #[repr(C)]
-pub struct PagetableT<'a> {
-    pub data: &'a mut [PteT; NPTE],
+pub struct PagetableT {
+    pub data: *mut [PteT; NPTE],
 }
 
-impl<'a> PagetableT<'a> {
+impl PagetableT {
     // 将一个 Addr 转换成 PagetableT
     pub fn addr2pagetablet(addr: Addr) -> Self {
         Self {
@@ -24,7 +24,11 @@ impl<'a> PagetableT<'a> {
 
     // 转换成 Addr
     pub fn pagetablet2addr(&self) -> Addr {
-        self.data.as_ptr() as Addr
+        self.data as Addr
+    }
+
+    pub fn ipte<'a>(&mut self, i: usize) -> &'a mut PteT {
+        unsafe { transmute((self.data as *mut PteT).add(i)) }
     }
 
     // 返回一个虚拟地址对应页表项指针
@@ -38,7 +42,7 @@ impl<'a> PagetableT<'a> {
         let mut pagetable = PagetableT::addr2pagetablet(self.pagetablet2addr());
 
         for level in (1..3).rev() {
-            pte = &mut pagetable.data[px(level, va)];
+            pte = pagetable.ipte(px(level, va));
             if (*pte & PTE_V) != 0 {
                 pagetable = PagetableT::addr2pagetablet(pte2pa(*pte));
             } else {
@@ -64,7 +68,7 @@ impl<'a> PagetableT<'a> {
             // }
         }
 
-        &mut pagetable.data[px(0, va)]
+        pagetable.ipte(px(0, va))
     }
 
     // 通过查页表，返回一个虚拟地址对应的物理地址

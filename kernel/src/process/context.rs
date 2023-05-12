@@ -1,4 +1,4 @@
-#[derive(Clone, Copy)]
+
 pub struct Context {}
 
 impl Context {

@@ -58,3 +58,5 @@ lazy_static! {
         head: Buf::new()
     });
 }
+
+pub fn binit() {}

@@ -18,7 +18,7 @@ extern "C" {
 }
 
 pub struct Kvm {
-    kernel_pagetable: PagetableT<'static>,
+    kernel_pagetable: PagetableT,
 }
 
 impl Kvm {

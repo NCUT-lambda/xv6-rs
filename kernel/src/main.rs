@@ -10,12 +10,15 @@ use core::{
 
 use crate::{
     console::{consoleinit, printfinit},
+    driver::virtio_disk_init,
+    fs::{binit, fileinit, iinit},
     logo::print_logo,
     memory::{
         kalloc::kinit,
         kvm::{kvminit, kvminithart},
     },
-    process::{cpu::cpuid, proc::procinit},
+    process::{cpu::cpuid, proc::procinit, scheduler, userinit},
+    sbi::start_hart,
     trap::{plicinit, plicinithart, trapinit, trapinithart},
 };
 
@@ -39,29 +42,36 @@ mod memory;
 pub mod process;
 mod syscall;
 mod trap;
+mod exec;
 
 global_asm!(include_str!("entry.S"));
 
 static STATED: AtomicBool = AtomicBool::new(false);
 
 #[no_mangle]
-pub fn main() {
+pub fn main(hartid: usize) {
     clear_bss();
+    // start_hart(hartid);
 
     if cpuid() == 0 {
-        consoleinit();
+        consoleinit(); 		// 初始化控制台
         printfinit();
         print_logo();
         println!("xv6-rust kernel is booting...");
         println!("");
-        kinit();
-        kvminit();
-        kvminithart();
-        procinit();
-        trapinit();
-        trapinithart();
-        plicinit();
-        plicinithart();
+        kinit(); 			// 初始化物理页分配器
+        kvminit(); 			// 创建内核页表
+        kvminithart(); 		// 打开分页管理
+        procinit(); 		// 初始化进程表
+        trapinit(); 		// 中断初始化
+        trapinithart(); 	// 设置中断向量
+        plicinit(); 		// 开启中断控制器
+        plicinithart(); 	// 向 PLIC 请求设备中断
+        binit(); 			// 初始化缓冲区
+        iinit(); 			// 初始化 inode 表
+        fileinit(); 		// 初始化文件表
+        virtio_disk_init(); // 初始化磁盘设备
+        userinit(); 		// 启动第 0 个进程
 
         STATED.store(true, Ordering::SeqCst);
     } else {
@@ -69,7 +79,10 @@ pub fn main() {
 
         println!("hart {} starting...", cpuid());
         kvminithart();
+        trapinithart();
+        plicinithart();
     }
+    scheduler();
 
     panic!("Shutdown!");
 }

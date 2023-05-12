@@ -1,5 +1,5 @@
 #[repr(C)]
-struct Trapframe {
+pub struct Trapframe {
     x: [usize; 32], // 通用寄存器
     kernel_satp: usize,
     kernel_sp: usize,

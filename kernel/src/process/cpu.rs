@@ -1,10 +1,12 @@
 use core::{arch::asm, ptr::null_mut};
 
-use crate::riscv::r_tp;
+use crate::{param::NPROC, riscv::r_tp, sync::upcell::UPCell};
 
 use super::{context::Context, proc::Proc};
+use array_macro::array;
+use lazy_static::lazy_static;
 
-#[derive(Clone, Copy)]
+// #[derive(Clone, Copy)]
 pub struct Cpu {
     pub proc: *mut Proc,
     context: Context,
@@ -23,7 +25,9 @@ impl Cpu {
     }
 }
 
-static mut CPUS: [Cpu; 8] = [Cpu::new(); 8];
+lazy_static! {
+    static ref CPUS: UPCell<[Cpu; NPROC]> = UPCell::new(array![_ => Cpu::new(); NPROC]);
+}
 
 pub fn cpuid() -> usize {
     r_tp()
@@ -31,5 +35,5 @@ pub fn cpuid() -> usize {
 
 pub fn mycpu() -> *mut Cpu {
     let id = cpuid();
-    unsafe { &mut CPUS[id] }
+	&mut CPUS.get_mut()[id]
 }
