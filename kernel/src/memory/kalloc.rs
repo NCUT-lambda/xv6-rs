@@ -1,5 +1,6 @@
 use core::ptr::null_mut;
 use lazy_static::*;
+use rustsbi::spec::base::impl_id::KVM;
 
 use crate::{
     lock::spinlock::Spinlock,
@@ -45,6 +46,7 @@ impl Kmem {
             panic!("kfree");
         }
 
+		// 填充垃圾数据避免垂悬引用
         memset(pa, 1, PGSIZE);
 
         let pa = pa as *mut Run;
@@ -83,4 +85,8 @@ pub fn kinit() {
 
 pub fn kalloc() -> Addr {
     KMEM.get_mut().kalloc()
+}
+
+pub fn kfree(pa: Addr) {
+	KMEM.get_mut().kfree(pa);
 }

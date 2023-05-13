@@ -6,7 +6,7 @@ use crate::{
         sleeplock::Sleeplock,
         spinlock::{pop_off, push_off, Spinlock},
     },
-    memory::{memlayout::kstack, pagetable::PagetableT},
+    memory::{memlayout::kstack, pagetable::PagetableT, kalloc::{kalloc, kfree}, uvm::Uvm},
     param::{NOFILE, NPROC},
     riscv::Addr,
     sync::upcell::UPCell,
@@ -70,7 +70,7 @@ pub struct Proc {
     // 这些是进程的私有属性，不必持有 p->lock
     kstack: Addr,                   // 内核栈的虚拟地址
     sz: usize,                      // 进程占用内存大小 (单位: 字节)
-    pagetable: PagetableT, // 进程页表
+    uvm: Uvm, 						// 进程页表
     trapframe: *mut Trapframe,      // 用于切换到内核时保存用户信息
     context: Context,               // swtch() 从这切换进程
     ofile: [*mut File; NOFILE],     // 打开的文件
@@ -90,7 +90,7 @@ impl Proc {
             parent: null_mut(),
             kstack: 0,
             sz: 0,
-            pagetable: PagetableT::addr2pagetablet(0),
+            uvm: Uvm::new(),
             trapframe: null_mut(),
             context: Context {},
             ofile: [null_mut(); NOFILE],
@@ -98,6 +98,20 @@ impl Proc {
             name: String::new()
         }
     }
+
+	fn freeproc(&mut self) {
+		if self.trapframe != null_mut() {
+			kfree(self.trapframe as Addr);
+		}
+		self.trapframe = null_mut();
+		if self.uvm.valid() {
+
+		}
+	}
+
+	fn proc_pagetable(&mut self) -> PagetableT {
+		todo!()
+	}
 
     fn sleep(&mut self, chan: *mut Sleeplock, lk: *mut Spinlock) {
         let lk: &mut Spinlock = unsafe { transmute(lk) };
@@ -135,6 +149,7 @@ lazy_static! {
     static ref PROC: UPCell<[Proc; NPROC]> = UPCell::new(array![_ => Proc::new(); NPROC]);
 }
 
+
 pub fn procinit() {
     let proc = PROC.get_mut();
     for i in 0..NPROC {
@@ -151,6 +166,48 @@ pub fn myproc() -> *mut Proc {
     pop_off();
     p
 }
+
+pub fn allocpid() -> usize {
+	let pid:usize;
+	let pidcnt = PIDCNT.get_mut();
+	
+	pidcnt.pid_lock.acquire();
+	pid = pidcnt.nextpid;
+	pidcnt.nextpid += 1;
+	pidcnt.pid_lock.release();
+
+	pid
+}
+
+fn allocproc() -> *mut Proc {
+	let proc = PROC.get_mut();
+	for i in 0..NPROC {
+		let p = &mut proc[i];
+		p.lock.acquire();
+		if p.state == ProcState::Unused {	// found
+			p.pid = allocpid();
+			p.state = ProcState::Used;
+
+			// 分配一个 trapframe 页
+			let pa = kalloc();
+			if pa == 0 {
+				p.freeproc();
+				p.lock.release();
+				return null_mut();
+			}
+
+			// 创建一个空的用户页表
+			
+
+			return p
+		} else {
+			p.lock.release();
+		}
+	}
+	return null_mut()
+}
+
+
 
 pub fn sched() {
     todo!()

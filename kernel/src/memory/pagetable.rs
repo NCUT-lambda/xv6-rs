@@ -11,14 +11,14 @@ use super::{kalloc::kalloc, pgrounddown};
 
 #[repr(C)]
 pub struct PagetableT {
-    pub data: *mut [PteT; NPTE],
+    pub data: *mut PteT
 }
 
 impl PagetableT {
     // 将一个 Addr 转换成 PagetableT
     pub fn addr2pagetablet(addr: Addr) -> Self {
         Self {
-            data: unsafe { transmute(addr as *mut PteT) },
+            data: addr as *mut PteT
         }
     }
 
@@ -27,8 +27,12 @@ impl PagetableT {
         self.data as Addr
     }
 
+    pub fn valid(&self) -> bool {
+        self.data != null_mut()
+    }
+
     pub fn ipte<'a>(&mut self, i: usize) -> &'a mut PteT {
-        unsafe { transmute((self.data as *mut PteT).add(i)) }
+        unsafe { &mut *self.data.add(i) }
     }
 
     // 返回一个虚拟地址对应页表项指针
@@ -93,8 +97,8 @@ impl PagetableT {
     }
 
     // 映射一个虚拟页面到一个物理页面
-    // 返回 true 表示成功, false 表示失败
-    pub fn mappages(&mut self, va: Addr, size: Addr, mut pa: Addr, perm: usize) -> bool {
+    // 返回 0 表示成功, -1 表示失败
+    pub fn mappages(&mut self, va: Addr, size: Addr, mut pa: Addr, perm: usize) -> i32 {
         if size == 0 {
             panic!("mappages: size");
         }
@@ -105,7 +109,7 @@ impl PagetableT {
             // println!("mapping addr: {:#x}", a);
             let pte = self.walk(a, true);
             if pte == null_mut() {
-                return false;
+                return -1;
             }
             if unsafe { *pte & PTE_V } != 0 {
                 panic!("mappages: remap");
@@ -114,7 +118,7 @@ impl PagetableT {
             a += PGSIZE;
             pa += PGSIZE;
         }
-        true
+        0
     }
 
     pub fn make_satp(&self) -> usize {
