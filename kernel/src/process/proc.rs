@@ -1,4 +1,4 @@
-use core::{mem::transmute, ptr::null_mut};
+use core::{mem::{transmute, size_of}, ptr::{null_mut, null}, borrow::BorrowMut};
 
 use crate::{
     fs::{File, Inode},
@@ -6,11 +6,11 @@ use crate::{
         sleeplock::Sleeplock,
         spinlock::{pop_off, push_off, Spinlock},
     },
-    memory::{memlayout::kstack, pagetable::PagetableT, kalloc::{kalloc, kfree}, uvm::Uvm},
+    memory::{memlayout::{kstack, TRAMPOLINE, TRAPFRAME}, kalloc::{kalloc, kfree}, uvm::Uvm},
     param::{NOFILE, NPROC},
-    riscv::Addr,
+    riscv::{Addr, PGSIZE, PTE_R, PTE_X},
     sync::upcell::UPCell,
-    trap::trapframe::Trapframe,
+    trap::trapframe::Trapframe, string::memset,
 };
 extern crate alloc;
 
@@ -23,6 +23,13 @@ use super::{
     cpu::{mycpu, Cpu},
 };
 
+extern "C" {
+    fn trampoline();
+    fn forkret();
+}
+
+// 分配 pid 的计数器
+// 使用时必须持有 pid_lock
 struct PidCnt {
     pid_lock: Spinlock,
     nextpid: usize,
@@ -40,6 +47,9 @@ lazy_static! {
     static ref PIDCNT: UPCell<PidCnt> = UPCell::new(PidCnt::new("nextpid"));
 }
 
+// 用于保证对正在 wake() 的父进程的唤醒不会丢失
+// 当需要使用 p->parent 时，必须在获取 p->lock
+// 之前获取此锁
 lazy_static! {
     static ref WAIT_LOCK: UPCell<Spinlock> = UPCell::new(Spinlock::new("wait_lock"));
 }
@@ -54,6 +64,7 @@ enum ProcState {
     Zombie,
 }
 
+// 进程控制块
 pub struct Proc {
     pub lock: Spinlock,
 
@@ -92,26 +103,66 @@ impl Proc {
             sz: 0,
             uvm: Uvm::new(),
             trapframe: null_mut(),
-            context: Context {},
+            context: Context::new(),
             ofile: [null_mut(); NOFILE],
             cwd: null_mut(),
             name: String::new()
         }
     }
 
+    // 释放一个进程，包括释放为其分配的所有资源
+    // 必须持有 p->lock
 	fn freeproc(&mut self) {
 		if self.trapframe != null_mut() {
 			kfree(self.trapframe as Addr);
 		}
 		self.trapframe = null_mut();
 		if self.uvm.valid() {
-
+            self.proc_freeuvm();
 		}
+        self.uvm = Uvm::new();
+        self.sz = 0;
+        self.pid = 0;
+        self.parent = null_mut();
+        self.name = String::new();
+        self.chan = null_mut();
+        self.killed = false;
+        self.xstate = 0;
+        self.state = ProcState::Unused;
 	}
 
-	fn proc_pagetable(&mut self) -> PagetableT {
-		todo!()
+    // 创建一个用户程序的 struct Uvm，不含用户物理内存
+    // 但是包含 trapoline 和 trapframe 两个页面
+	fn proc_uvm(&mut self) -> Uvm {
+        // 创建一个空页表
+        let mut uvm = Uvm::from_pagetable(Uvm::uvmcreate());
+        if !uvm.valid() {
+            return uvm;
+        }
+
+        // 映射 trampoline 页面到虚拟地址的最高处
+        // 只有在 S 模式下，也就是在往返用户空间时才会访问这块空间
+        // 所以不需要设置 PTE_U 位
+        if uvm.pagetable.mappages(TRAMPOLINE, PGSIZE, trampoline as Addr, PTE_R | PTE_X) < 0 {
+            uvm.uvmfree(0);
+            return Uvm::new();
+        }
+
+        // 紧接着 trapframe 页面映射 trapoline 页面
+        if uvm.pagetable.mappages(TRAPFRAME, PGSIZE, self.trapframe as Addr, PTE_R | PTE_X) < 0 {
+            uvm.uvmfree(0);
+            return Uvm::new();
+        }
+
+        uvm
 	}
+
+    // 释放一个进程的 struct Uvm，并且会释放所有的物理内存
+    fn proc_freeuvm(&mut self) {
+        self.uvm.uvmunmap(TRAMPOLINE, 1, false);
+        self.uvm.uvmunmap(TRAPFRAME, 1, false);
+        self.uvm.uvmfree(self.sz);
+    }
 
     fn sleep(&mut self, chan: *mut Sleeplock, lk: *mut Spinlock) {
         let lk: &mut Spinlock = unsafe { transmute(lk) };
@@ -149,7 +200,7 @@ lazy_static! {
     static ref PROC: UPCell<[Proc; NPROC]> = UPCell::new(array![_ => Proc::new(); NPROC]);
 }
 
-
+// 初始化进程表
 pub fn procinit() {
     let proc = PROC.get_mut();
     for i in 0..NPROC {
@@ -159,6 +210,7 @@ pub fn procinit() {
     println!("procinit success!");
 }
 
+// 返回当前进程的指针，否则返回空指针
 pub fn myproc() -> *mut Proc {
     push_off();
     let c: &Cpu = unsafe { transmute(mycpu()) };
@@ -167,6 +219,7 @@ pub fn myproc() -> *mut Proc {
     p
 }
 
+// 返回一个当前最小的 pid
 pub fn allocpid() -> usize {
 	let pid:usize;
 	let pidcnt = PIDCNT.get_mut();
@@ -179,6 +232,10 @@ pub fn allocpid() -> usize {
 	pid
 }
 
+// 在进程表中寻找一个状态为 Unused 的进程
+// 如果找到就将其初始化
+// 返回时会持有 p->lock
+// 如果没有找到空闲进程，或者初始化失败（内存不足），就返回空指针
 fn allocproc() -> *mut Proc {
 	let proc = PROC.get_mut();
 	for i in 0..NPROC {
@@ -197,7 +254,18 @@ fn allocproc() -> *mut Proc {
 			}
 
 			// 创建一个空的用户页表
+            p.uvm = p.proc_uvm();
+            if !p.uvm.valid() {
+                p.freeproc();
+                p.lock.release();
+                return null_mut();
+            }
 			
+            // 设置进程的初始 context 在 forkret()，
+            // 进程会从这里返回用户空间
+            memset(&p.context as *const Context as Addr, 0, size_of::<Context>());
+            p.context.ra = forkret as usize;
+            p.context.sp = p.kstack + PGSIZE;
 
 			return p
 		} else {

@@ -1,0 +1,3 @@
+[x] proc::allocproc
+    [x] proc::freeproc
+        [x] proc::proc_freeuvm

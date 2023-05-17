@@ -13,7 +13,7 @@ use super::{
 };
 
 pub struct Uvm {
-    pagetable: PagetableT,
+    pub pagetable: PagetableT,
 }
 
 impl Uvm {
