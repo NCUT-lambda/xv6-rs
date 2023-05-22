@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
+#![allow(unused)]
 
 use core::{
     arch::global_asm,
@@ -17,7 +18,7 @@ use crate::{
         kalloc::kinit,
         kvm::{kvminit, kvminithart},
     },
-    process::{cpu::cpuid, proc::procinit, scheduler, userinit},
+    process::{cpu::cpuid, proc::{procinit, proc_test}, scheduler, userinit},
     sbi::start_hart,
     trap::{plicinit, plicinithart, trapinit, trapinithart},
 };
@@ -83,6 +84,8 @@ pub fn main(hartid: usize) {
         plicinithart();
     }
     scheduler();
+
+    // proc_test();
 
     panic!("Shutdown!");
 }

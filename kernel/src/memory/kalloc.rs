@@ -47,7 +47,7 @@ impl Kmem {
         }
 
 		// 填充垃圾数据避免垂悬引用
-        memset(pa, 1, PGSIZE);
+        memset(pa as *mut u8, 1, PGSIZE);
 
         let pa = pa as *mut Run;
         self.lock.acquire();
@@ -67,7 +67,7 @@ impl Kmem {
         self.lock.release();
 
         if r != null_mut() {
-            memset(r as usize, 5, PGSIZE);
+            memset(r as *mut u8, 5, PGSIZE);
         }
 
         r as Addr

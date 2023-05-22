@@ -4,3 +4,8 @@ pub mod proc;
 
 pub fn scheduler() {}
 pub fn userinit() {}
+
+#[no_mangle]
+fn forkret() {
+
+}

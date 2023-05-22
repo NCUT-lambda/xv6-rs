@@ -31,7 +31,7 @@ impl Uvm {
     // 内存不足时返回 0
     pub fn uvmcreate() -> PagetableT {
         let pagetable = PagetableT::addr2pagetablet(kalloc());
-        memset(pagetable.data as Addr, 0, PGSIZE);
+        memset(pagetable.data, 0, PGSIZE);
         pagetable
     }
 
@@ -51,7 +51,7 @@ impl Uvm {
         let mut pte;
         for _ in 0..npages {
             pte = self.pagetable.walk(a, false);
-            if pte == null_mut() {
+            if pte.is_null(){
                 panic!("uvmunmap: walk");
             }
             let pte = unsafe { &mut *pte };
@@ -81,10 +81,10 @@ impl Uvm {
         }
 
         let mem = kalloc();
-        memset(mem, 0, PGSIZE);
+        memset(mem as *mut u8, 0, PGSIZE);
         self.pagetable
             .mappages(0, PGSIZE, mem, PTE_W | PTE_R | PTE_X | PTE_U);
-        memmove(mem, src as Addr, sz);
+        memmove(mem as *mut u8, src as *mut u8, sz);
     }
 
     // 增加用户程序内存，并会分配相应的页表项
@@ -103,7 +103,7 @@ impl Uvm {
                 self.uvmdealloc(a, oldsz);
                 return 0;
             }
-            memset(mem, 0, PGSIZE);
+            memset(mem as *mut u8, 0, PGSIZE);
             if self
                 .pagetable
                 .mappages(a, PGSIZE, mem, PTE_R | PTE_U | xperm)
@@ -166,7 +166,7 @@ impl Uvm {
 		let mut err = false;
 		while a < sz {
 			let pte = self.pagetable.walk(a, false);
-			if pte == null_mut() {
+			if pte.is_null() {
 				panic!("uvmcopy: pte should exist");
 			}
 			let pte = unsafe {*pte};
@@ -180,7 +180,7 @@ impl Uvm {
 				err = true;
 				break;
 			}
-			memmove(mem, pa, PGSIZE);
+			memmove(mem as *mut u8, pa as *mut u8, PGSIZE);
 			if new.pagetable.mappages(a, PGSIZE, mem, flags) != 0 {
 				kfree(mem);
 				err = true;
@@ -200,7 +200,7 @@ impl Uvm {
 	// 在 exec() 设置用户栈的保护页时会被使用
 	pub fn uvmclear(&mut self, va: Addr) {
 		let pte = self.pagetable.walk(va, false);
-		if pte == null_mut() {
+		if pte.is_null() {
 			panic!("uvmclear");
 		}
 		let pte = unsafe {&mut *pte};
@@ -209,7 +209,8 @@ impl Uvm {
 
 	// 从内核复制进用户内存
 	// 成功返回 0，否则返回 -1
-	pub fn copyout(&mut self, mut dstva: Addr, mut src: Addr, mut len: usize) -> isize {
+	pub fn copyout<T>(&mut self, mut dstva: Addr, mut src: *const T, mut len: usize) -> isize {
+        let mut src = src as Addr;
 		while len > 0 {
 			let va0 = pgrounddown(dstva);
 			let pa0 = self.pagetable.walkaddr(va0);
@@ -220,7 +221,7 @@ impl Uvm {
 			if n > len {
 				n = len;
 			}
-			memmove(pa0 + dstva - va0, src, n);
+			memmove((pa0 + dstva - va0) as *mut u8, src as *const u8, n);
 
 			len -= n;
 			src += n;
@@ -230,9 +231,10 @@ impl Uvm {
 		0
 	}
 
-	// 内用户复制进内核内存
+	// 从用户复制进内核内存
 	// 成功返回 0，否则返回 -1
-	pub fn copyin(&mut self, mut dst: Addr, mut srcva: Addr, mut len: usize) -> isize {
+	pub fn copyin<T>(&mut self, mut dst: *mut T, mut srcva: Addr, mut len: usize) -> isize {
+        let mut dst = dst as *mut u8;
 		while len > 0 {
 			let va0 = pgrounddown(srcva);
 			let pa0 = self.pagetable.walkaddr(va0);
@@ -243,10 +245,10 @@ impl Uvm {
 			if n > len {
 				n = len;
 			}
-			memmove(dst, pa0 + srcva - va0, n);
+			memmove(dst, (pa0 + srcva - va0) as *const u8, n);
 
 			len -= n;
-			dst += n;
+			dst = unsafe { dst.add(n) };
 			srcva = va0 + PGSIZE;
 		}
 
@@ -260,4 +262,9 @@ impl Uvm {
 		todo!()
 	}
 
+}
+
+pub fn uvm_test() {
+    let uvm = Uvm::uvmcreate();
+    
 }

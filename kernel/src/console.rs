@@ -30,8 +30,9 @@ macro_rules! println {
     }
 }
 
-// Rust-SBI 已经实现了，所以我们什么都不需要做
+
+// 目前使用的是 RustSBI 提供的接口
 pub fn consoleinit() {}
 
-// Rust-SBI 已经实现了，所以我们什么都不需要做
+// 目前使用的是 RustSBI 提供的接口
 pub fn printfinit() {}

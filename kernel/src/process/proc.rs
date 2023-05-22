@@ -1,4 +1,8 @@
-use core::{mem::{transmute, size_of}, ptr::{null_mut, null}, borrow::BorrowMut};
+use core::{
+    borrow::BorrowMut,
+    mem::{size_of, transmute},
+    ptr::{null, null_mut},
+};
 
 use crate::{
     fs::{File, Inode},
@@ -6,11 +10,16 @@ use crate::{
         sleeplock::Sleeplock,
         spinlock::{pop_off, push_off, Spinlock},
     },
-    memory::{memlayout::{kstack, TRAMPOLINE, TRAPFRAME}, kalloc::{kalloc, kfree}, uvm::Uvm},
+    memory::{
+        kalloc::{kalloc, kfree},
+        memlayout::{kstack, TRAMPOLINE, TRAPFRAME},
+        uvm::Uvm,
+    },
     param::{NOFILE, NPROC},
     riscv::{Addr, PGSIZE, PTE_R, PTE_X},
+    string::memset,
     sync::upcell::UPCell,
-    trap::trapframe::Trapframe, string::memset,
+    trap::trapframe::Trapframe,
 };
 extern crate alloc;
 
@@ -79,14 +88,14 @@ pub struct Proc {
     parent: *mut Proc, // 父进程
 
     // 这些是进程的私有属性，不必持有 p->lock
-    kstack: Addr,                   // 内核栈的虚拟地址
-    sz: usize,                      // 进程占用内存大小 (单位: 字节)
-    uvm: Uvm, 						// 进程页表
-    trapframe: *mut Trapframe,      // 用于切换到内核时保存用户信息
-    context: Context,               // swtch() 从这切换进程
-    ofile: [*mut File; NOFILE],     // 打开的文件
-    cwd: *mut Inode,                // 当前工作目录
-    name: String,                   // 进程名
+    kstack: Addr,                  // 内核栈的虚拟地址
+    sz: usize,                     // 进程占用内存大小 (单位: 字节)
+    pub uvm: Uvm,                  // 进程页表
+    pub trapframe: *mut Trapframe, // 用于切换到内核时保存用户信息
+    context: Context,              // swtch() 从这切换进程
+    ofile: [*mut File; NOFILE],    // 打开的文件
+    cwd: *mut Inode,               // 当前工作目录
+    pub name: String,              // 进程名
 }
 
 impl Proc {
@@ -106,20 +115,20 @@ impl Proc {
             context: Context::new(),
             ofile: [null_mut(); NOFILE],
             cwd: null_mut(),
-            name: String::new()
+            name: String::new(),
         }
     }
 
     // 释放一个进程，包括释放为其分配的所有资源
     // 必须持有 p->lock
-	fn freeproc(&mut self) {
-		if self.trapframe != null_mut() {
-			kfree(self.trapframe as Addr);
-		}
-		self.trapframe = null_mut();
-		if self.uvm.valid() {
+    fn freeproc(&mut self) {
+        if self.trapframe != null_mut() {
+            kfree(self.trapframe as Addr);
+        }
+        self.trapframe = null_mut();
+        if self.uvm.valid() {
             self.proc_freeuvm();
-		}
+        }
         self.uvm = Uvm::new();
         self.sz = 0;
         self.pid = 0;
@@ -129,11 +138,11 @@ impl Proc {
         self.killed = false;
         self.xstate = 0;
         self.state = ProcState::Unused;
-	}
+    }
 
     // 创建一个用户程序的 struct Uvm，不含用户物理内存
     // 但是包含 trapoline 和 trapframe 两个页面
-	fn proc_uvm(&mut self) -> Uvm {
+    fn proc_uvm(&mut self) -> Uvm {
         // 创建一个空页表
         let mut uvm = Uvm::from_pagetable(Uvm::uvmcreate());
         if !uvm.valid() {
@@ -143,19 +152,27 @@ impl Proc {
         // 映射 trampoline 页面到虚拟地址的最高处
         // 只有在 S 模式下，也就是在往返用户空间时才会访问这块空间
         // 所以不需要设置 PTE_U 位
-        if uvm.pagetable.mappages(TRAMPOLINE, PGSIZE, trampoline as Addr, PTE_R | PTE_X) < 0 {
+        if uvm
+            .pagetable
+            .mappages(TRAMPOLINE, PGSIZE, trampoline as Addr, PTE_R | PTE_X)
+            < 0
+        {
             uvm.uvmfree(0);
             return Uvm::new();
         }
 
         // 紧接着 trapframe 页面映射 trapoline 页面
-        if uvm.pagetable.mappages(TRAPFRAME, PGSIZE, self.trapframe as Addr, PTE_R | PTE_X) < 0 {
+        if uvm
+            .pagetable
+            .mappages(TRAPFRAME, PGSIZE, self.trapframe as Addr, PTE_R | PTE_X)
+            < 0
+        {
             uvm.uvmfree(0);
             return Uvm::new();
         }
 
         uvm
-	}
+    }
 
     // 释放一个进程的 struct Uvm，并且会释放所有的物理内存
     fn proc_freeuvm(&mut self) {
@@ -221,15 +238,15 @@ pub fn myproc() -> *mut Proc {
 
 // 返回一个当前最小的 pid
 pub fn allocpid() -> usize {
-	let pid:usize;
-	let pidcnt = PIDCNT.get_mut();
-	
-	pidcnt.pid_lock.acquire();
-	pid = pidcnt.nextpid;
-	pidcnt.nextpid += 1;
-	pidcnt.pid_lock.release();
+    let pid: usize;
+    let pidcnt = PIDCNT.get_mut();
 
-	pid
+    pidcnt.pid_lock.acquire();
+    pid = pidcnt.nextpid;
+    pidcnt.nextpid += 1;
+    pidcnt.pid_lock.release();
+
+    pid
 }
 
 // 在进程表中寻找一个状态为 Unused 的进程
@@ -237,45 +254,45 @@ pub fn allocpid() -> usize {
 // 返回时会持有 p->lock
 // 如果没有找到空闲进程，或者初始化失败（内存不足），就返回空指针
 fn allocproc() -> *mut Proc {
-	let proc = PROC.get_mut();
-	for i in 0..NPROC {
-		let p = &mut proc[i];
-		p.lock.acquire();
-		if p.state == ProcState::Unused {	// found
-			p.pid = allocpid();
-			p.state = ProcState::Used;
+    let proc = PROC.get_mut();
+    for i in 0..NPROC {
+        let p = &mut proc[i];
+        p.lock.acquire();
+        if p.state == ProcState::Unused {
+            // found
+            p.pid = allocpid();
+            p.state = ProcState::Used;
 
-			// 分配一个 trapframe 页
-			let pa = kalloc();
-			if pa == 0 {
-				p.freeproc();
-				p.lock.release();
-				return null_mut();
-			}
+            // 分配一个 trapframe 页
+            let pa = kalloc();
+            p.trapframe = pa as *mut Trapframe;
+            if pa == 0 {
+                p.freeproc();
+                p.lock.release();
+                return null_mut();
+            }
 
-			// 创建一个空的用户页表
+            // 创建一个空的用户页表
             p.uvm = p.proc_uvm();
             if !p.uvm.valid() {
                 p.freeproc();
                 p.lock.release();
                 return null_mut();
             }
-			
+
             // 设置进程的初始 context 在 forkret()，
             // 进程会从这里返回用户空间
-            memset(&p.context as *const Context as Addr, 0, size_of::<Context>());
+            memset(&mut p.context, 0, size_of::<Context>());
             p.context.ra = forkret as usize;
             p.context.sp = p.kstack + PGSIZE;
 
-			return p
-		} else {
-			p.lock.release();
-		}
-	}
-	return null_mut()
+            return p;
+        } else {
+            p.lock.release();
+        }
+    }
+    return null_mut();
 }
-
-
 
 pub fn sched() {
     todo!()
@@ -294,4 +311,48 @@ pub fn wakeup(chan: *mut Sleeplock) {
             p.wakeup(chan);
         }
     }
+}
+
+pub fn proc_test() {
+    let mut p = Proc::new();
+    p.pid = allocpid();
+    p.state = ProcState::Used;
+
+    // 分配一个 trapframe 页
+    let pa = kalloc();
+    p.trapframe = pa as *mut Trapframe;
+    if pa == 0 {
+        panic!("error 1");
+    }
+
+    // 创建一个空的用户页表
+    p.uvm = p.proc_uvm();
+    if !p.uvm.valid() {
+        panic!("error 2");
+    }
+
+
+    // 设置进程的初始 context 在 forkret()，
+    // 进程会从这里返回用户空间
+    memset(&mut p.context, 0, size_of::<Context>());
+    p.context.ra = forkret as usize;
+    p.context.sp = p.kstack + PGSIZE;
+
+    let tf = unsafe {&mut *p.trapframe};
+    for i in 0..32 {
+        tf.x[i] = i;
+    }
+    for i in 0..32 {
+        assert_eq!(i, tf.x[i]);
+    }
+
+    let mut arr = [32;0usize];
+    p.uvm.copyin(&mut arr, TRAPFRAME, 32 * 8);
+    for i in 0..32 {
+        assert_eq!(i, tf.x[i]);
+    }
+
+    println!("proc_test passed!");
+
+
 }

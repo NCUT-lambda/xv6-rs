@@ -24,7 +24,7 @@ pub struct Kvm {
 impl Kvm {
     fn new() -> Self {
         let kpgtbl = PagetableT::addr2pagetablet(kalloc());
-        memset(kpgtbl.pagetablet2addr(), 0, PGSIZE);
+        memset(kpgtbl.pagetablet2addr() as *mut u8, 0, PGSIZE);
         Self {
             kernel_pagetable: kpgtbl,
         }

@@ -1,31 +1,36 @@
-OUTPUT_ARCH(riscv)
-ENTRY(_start)
+OUTPUT_ARCH( "riscv" )
+ENTRY( _main )
 
-BASE_ADDRESS = 0x0;
 
 SECTIONS
 {
-    . = BASE_ADDRESS;
+    . = 0x0;
+    
     .text : {
-        *(.text.entry)
         *(.text .text.*)
     }
-    . = ALIGN(4K);
+
     .rodata : {
+        . = ALIGN(16);
+        *(.srodata .srodata.*) /* do not need to distinguish this from .rodata */
+        . = ALIGN(16);
         *(.rodata .rodata.*)
-        *(.srodata .srodata.*)
+        . = ALIGN(0x1000);
     }
-    . = ALIGN(4K);
+
     .data : {
+        . = ALIGN(16);
+        *(.sdata .sdata.*) /* do not need to distinguish this from .data */
+        . = ALIGN(16);
         *(.data .data.*)
-        *(.sdata .sdata.*)
     }
+
     .bss : {
+        . = ALIGN(16);
+        *(.sbss .sbss.*) /* do not need to distinguish this from .bss */
+        . = ALIGN(16);
         *(.bss .bss.*)
-        *(.sbss .sbss.*)
     }
-    /DISCARD/ : {
-        *(.eh_frame)
-        *(.debug*)
-    }
+
+    PROVIDE(end = .);
 }

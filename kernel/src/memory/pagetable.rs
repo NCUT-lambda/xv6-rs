@@ -28,7 +28,7 @@ impl PagetableT {
     }
 
     pub fn valid(&self) -> bool {
-        self.data != null_mut()
+        !self.data.is_null()
     }
 
     pub fn ipte<'a>(&mut self, i: usize) -> &'a mut PteT {
@@ -58,7 +58,7 @@ impl PagetableT {
                     return null_mut();
                 }
                 pagetable = PagetableT::addr2pagetablet(pa);
-                memset(pa, 0, PGSIZE);
+                memset(pa as *mut u8, 0, PGSIZE);
                 *pte = pa2pte(pa) | PTE_V;
             }
             // if va == 0x87ffffff {
@@ -83,7 +83,7 @@ impl PagetableT {
         }
 
         let pte = self.walk(va, false);
-        if pte == null_mut() {
+        if pte.is_null() {
             return 0;
         }
         let pte = unsafe { *pte };
@@ -99,6 +99,7 @@ impl PagetableT {
     // 映射一个虚拟页面到一个物理页面
     // 返回 0 表示成功, -1 表示失败
     pub fn mappages(&mut self, va: Addr, size: Addr, mut pa: Addr, perm: usize) -> i32 {
+        // println!("mappages: va: {:#x}, pa: {:#x}", va, pa);
         if size == 0 {
             panic!("mappages: size");
         }
@@ -108,7 +109,7 @@ impl PagetableT {
         while a <= last {
             // println!("mapping addr: {:#x}", a);
             let pte = self.walk(a, true);
-            if pte == null_mut() {
+            if pte.is_null() {
                 return -1;
             }
             if unsafe { *pte & PTE_V } != 0 {
