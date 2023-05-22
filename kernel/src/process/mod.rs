@@ -2,8 +2,14 @@ pub mod context;
 pub mod cpu;
 pub mod proc;
 
-pub fn scheduler() {}
-pub fn userinit() {}
+global_asm!(include_str!("switch.S"));
+
+use core::arch::global_asm;
+
+
+pub use proc::{userinit, scheduler};
+
+
 
 #[no_mangle]
 fn forkret() {

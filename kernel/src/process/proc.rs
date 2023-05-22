@@ -16,7 +16,7 @@ use crate::{
         uvm::Uvm,
     },
     param::{NOFILE, NPROC},
-    riscv::{Addr, PGSIZE, PTE_R, PTE_X},
+    riscv::{intr_get, Addr, PGSIZE, PTE_R, PTE_X, intr_on},
     string::memset,
     sync::upcell::UPCell,
     trap::trapframe::Trapframe,
@@ -39,7 +39,7 @@ extern "C" {
 
 // 分配 pid 的计数器
 // 使用时必须持有 pid_lock
-struct PidCnt {
+pub struct PidCnt {
     pid_lock: Spinlock,
     nextpid: usize,
 }
@@ -53,14 +53,14 @@ impl PidCnt {
     }
 }
 lazy_static! {
-    static ref PIDCNT: UPCell<PidCnt> = UPCell::new(PidCnt::new("nextpid"));
+    pub static ref PIDCNT: UPCell<PidCnt> = UPCell::new(PidCnt::new("nextpid"));
 }
 
 // 用于保证对正在 wake() 的父进程的唤醒不会丢失
 // 当需要使用 p->parent 时，必须在获取 p->lock
 // 之前获取此锁
 lazy_static! {
-    static ref WAIT_LOCK: UPCell<Spinlock> = UPCell::new(Spinlock::new("wait_lock"));
+    pub static ref WAIT_LOCK: UPCell<Spinlock> = UPCell::new(Spinlock::new("wait_lock"));
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -78,11 +78,11 @@ pub struct Proc {
     pub lock: Spinlock,
 
     // 当使用这些时必须持有 p->lock
-    state: ProcState,     // 进程状态
-    chan: *mut Sleeplock, // 如果非空，处于休眠态并等待睡眠锁 chan
-    killed: bool,         // 如果为 true，进程被杀死
-    xstate: isize,        // 退出时的状态，会返回给正在等待的父进程
-    pub pid: usize,       // 进程号
+    state: ProcState, // 进程状态
+    chan: *mut u8,    // 如果非空，处于休眠态并等待睡眠锁 chan
+    killed: bool,     // 如果为 true，进程被杀死
+    xstate: isize,    // 退出时的状态，会返回给正在等待的父进程
+    pub pid: usize,   // 进程号
 
     // 当使用这个域时必须持有 wait_lock
     parent: *mut Proc, // 父进程
@@ -181,40 +181,23 @@ impl Proc {
         self.uvm.uvmfree(self.sz);
     }
 
-    fn sleep(&mut self, chan: *mut Sleeplock, lk: *mut Spinlock) {
-        let lk: &mut Spinlock = unsafe { transmute(lk) };
-
-        // 为了改变 p->state 然后调用 sched()必须持有 p->lock
-        // 一旦持有 p->lock，就能保证不会丢失任何 wakeup，
-        // 因为 wakeup() 会尝试获取这把锁
-        // 所以可以可以释放 lk
-        // 调度器会在换下当前进程后释放 p->lock
-        // 保证不会出现进程无法唤醒的情况
-        self.lock.acquire();
-        lk.release();
-        self.chan = chan;
-        self.state = ProcState::Sleeping;
-
-        sched();
-
-        self.chan = null_mut();
-
-        // 重新获取原来的锁
-        self.lock.release();
-        lk.acquire();
-    }
-
-    fn wakeup(&mut self, chan: *mut Sleeplock) {
-        self.lock.acquire();
-        if self.state == ProcState::Sleeping && self.chan == chan {
-            self.state = ProcState::Runable;
+    // 将 p 的子进程给 init 进程
+    // 调用者必须持有 wait_lock
+    pub fn reparent(&mut self) {
+        let proc = PROC.get_mut();
+        for cp in proc {
+            if cp.parent == self {
+                let initproc = *INITPROC.get_mut();
+                cp.parent = initproc;
+                wakeup(initproc);
+            }
         }
-        self.lock.release();
     }
 }
 
 lazy_static! {
-    static ref PROC: UPCell<[Proc; NPROC]> = UPCell::new(array![_ => Proc::new(); NPROC]);
+    pub static ref PROC: UPCell<[Proc; NPROC]> = UPCell::new(array![_ => Proc::new(); NPROC]);
+    pub static ref INITPROC: UPCell<*mut Proc> = UPCell::new(allocproc());
 }
 
 // 初始化进程表
@@ -230,7 +213,7 @@ pub fn procinit() {
 // 返回当前进程的指针，否则返回空指针
 pub fn myproc() -> *mut Proc {
     push_off();
-    let c: &Cpu = unsafe { transmute(mycpu()) };
+    let c = unsafe { &*mycpu() };
     let p = c.proc;
     pop_off();
     p
@@ -294,21 +277,126 @@ fn allocproc() -> *mut Proc {
     return null_mut();
 }
 
+static INITCODE: [u8; 52] = [
+    0x17, 0x05, 0x00, 0x00, 0x13, 0x05, 0x45, 0x02,
+    0x97, 0x05, 0x00, 0x00, 0x93, 0x85, 0x35, 0x02,
+    0x93, 0x08, 0x70, 0x00, 0x73, 0x00, 0x00, 0x00,
+    0x93, 0x08, 0x20, 0x00, 0x73, 0x00, 0x00, 0x00,
+    0xef, 0xf0, 0x9f, 0xff, 0x2f, 0x69, 0x6e, 0x69,
+    0x74, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00
+];
+
+// 设置第一个用户程序
+pub fn userinit() {
+    let p = unsafe {&mut *(*INITPROC.get_mut())};
+
+    // 为第一个用户程序内存，并且将 initcode 的指令复制到代码段
+    p.uvm.uvmfirst(&INITCODE as *const u8, INITCODE.len());
+
+    // 设置初始 context
+    let tf = unsafe {&mut *p.trapframe};
+    tf.epc = 0;
+    tf.x[2] = PGSIZE;   // sp
+
+    // p.name = String::from("initcode");
+    // p.cwd = namei("/");
+
+    p.state = ProcState::Runable;
+
+    p.lock.release();
+}
+
+
 pub fn sched() {
-    todo!()
+    extern "C" {
+        fn switch(old: *mut Context, new: *const Context);
+    }
+    let p = unsafe { &mut *myproc() };
+    let mc = unsafe { &mut *mycpu() };
+
+    if !p.lock.holding() {
+        panic!("sched p->lock");
+    }
+    if mc.noff != 1 {
+        panic!("sched locks");
+    }
+    if p.state == ProcState::Running {
+        panic!("sched running");
+    }
+    if intr_get() {
+        panic!("sched interrupible");
+    }
+
+    let intena = mc.intena;
+    unsafe { switch(&mut p.context, &mc.context); }
+    mc.intena = intena;
 }
 
-pub fn sleep(chan: *mut Sleeplock, lk: *mut Spinlock) {
-    let p: &mut Proc = unsafe { transmute(myproc()) };
+pub fn scheduler() {
+    extern "C" {
+        fn switch(old: *mut Context, new: *const Context);
+    }
+    let c = unsafe {&mut *mycpu()};
+    let proc = PROC.get_mut().as_mut_ptr();
 
-    p.sleep(chan, lk);
+    c.proc = null_mut();
+    loop {
+        // 开启中断，避免死锁
+        intr_on();
+
+        for i in 0..NPROC {
+            let p = unsafe {&mut *proc.add(i)};
+            p.lock.acquire();
+            if p.state == ProcState::Runable {
+                // 
+                p.state = ProcState::Running;
+                c.proc = p;
+                unsafe { switch(&mut c.context, &p.context); }
+
+                c.proc = null_mut();
+            }
+            p.lock.release();
+        }
+    }
 }
 
-pub fn wakeup(chan: *mut Sleeplock) {
+pub fn sleep<T>(chan: *mut T, lk: *mut Spinlock) {
+    let mut p = unsafe { &mut *myproc() };
+
+    let lk = unsafe { &mut *lk };
+
+    // 为了改变 p->state 然后调用 sched()必须持有 p->lock
+    // 一旦持有 p->lock，就能保证不会丢失任何 wakeup，
+    // 因为 wakeup() 会尝试获取这把锁
+    // 所以可以可以释放 lk
+    // 调度器会在换下当前进程后释放 p->lock
+    // 保证不会出现进程无法唤醒的情况
+    p.lock.acquire();
+    lk.release();
+
+    // 进入睡眠
+    p.chan = chan as *mut u8;
+    p.state = ProcState::Sleeping;
+
+    sched();
+
+    p.chan = null_mut();
+
+    // 重新获取原来的锁
+    p.lock.release();
+    lk.acquire();
+}
+
+pub fn wakeup<T>(chan: *mut T) {
     let proc = PROC.get_mut();
     for p in proc {
         if (p as *mut Proc) != myproc() {
-            p.wakeup(chan);
+            p.lock.acquire();
+            if p.state == ProcState::Sleeping && p.chan == chan as *mut u8 {
+                p.state = ProcState::Runable;
+            }
+            p.lock.release();
         }
     }
 }
@@ -331,14 +419,13 @@ pub fn proc_test() {
         panic!("error 2");
     }
 
-
     // 设置进程的初始 context 在 forkret()，
     // 进程会从这里返回用户空间
     memset(&mut p.context, 0, size_of::<Context>());
     p.context.ra = forkret as usize;
     p.context.sp = p.kstack + PGSIZE;
 
-    let tf = unsafe {&mut *p.trapframe};
+    let tf = unsafe { &mut *p.trapframe };
     for i in 0..32 {
         tf.x[i] = i;
     }
@@ -346,13 +433,11 @@ pub fn proc_test() {
         assert_eq!(i, tf.x[i]);
     }
 
-    let mut arr = [32;0usize];
+    let mut arr = [32; 0usize];
     p.uvm.copyin(&mut arr, TRAPFRAME, 32 * 8);
     for i in 0..32 {
         assert_eq!(i, tf.x[i]);
     }
 
     println!("proc_test passed!");
-
-
 }

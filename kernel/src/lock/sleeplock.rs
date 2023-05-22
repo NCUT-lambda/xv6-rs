@@ -30,7 +30,7 @@ impl Sleeplock {
             sleep(self as *mut Sleeplock, &mut self.lk);
         }
         self.locked = true;
-        let p: &mut Proc = unsafe { transmute(myproc()) };
+        let p = unsafe {  & *myproc()};
         self.pid = p.pid;
         self.lk.release();
     }

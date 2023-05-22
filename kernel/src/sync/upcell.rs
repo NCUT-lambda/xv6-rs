@@ -17,6 +17,6 @@ impl<T> UPCell<T> {
     }
 
     pub fn get_mut<'a>(&self) -> &'a mut T {
-        unsafe { transmute(self.data.as_ptr()) }
+        unsafe {&mut  *self.data.as_ptr() }
     }
 }

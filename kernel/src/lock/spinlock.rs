@@ -63,7 +63,7 @@ pub fn push_off() {
     let old = sstatus::read().sie();
 
     unsafe { sstatus::clear_sie() }
-    let mut mc: &mut Cpu = unsafe { transmute(mycpu()) };
+    let mut mc = unsafe { &mut *mycpu() };
 
     if mc.noff == 0 {
         mc.intena = old;

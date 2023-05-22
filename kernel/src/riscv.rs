@@ -1,5 +1,26 @@
 use core::arch::asm;
 
+use riscv::register::sstatus;
+
+// 开启设备中断
+#[inline]
+pub fn intr_on() {
+    unsafe { sstatus::set_sie() };
+}
+
+// 关闭设备中断
+#[inline]
+pub fn intr_off() {
+    unsafe {sstatus::clear_sie()};
+}
+
+// 中断时候开启
+#[inline]
+pub fn intr_get() -> bool {
+    unsafe {sstatus::read().sie()}
+}
+
+
 #[inline]
 pub fn r_sp() -> usize {
     let x: usize;

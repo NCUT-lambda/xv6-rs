@@ -46,6 +46,7 @@ mod trap;
 mod exec;
 
 global_asm!(include_str!("entry.S"));
+global_asm!(include_str!("link_app.S"));
 
 static STATED: AtomicBool = AtomicBool::new(false);
 
@@ -68,10 +69,10 @@ pub fn main(hartid: usize) {
         trapinithart(); 	// 设置中断向量
         plicinit(); 		// 开启中断控制器
         plicinithart(); 	// 向 PLIC 请求设备中断
-        binit(); 			// 初始化缓冲区
-        iinit(); 			// 初始化 inode 表
-        fileinit(); 		// 初始化文件表
-        virtio_disk_init(); // 初始化磁盘设备
+        // binit(); 		    // 初始化缓冲区
+        // iinit(); 		    // 初始化 inode 表
+        // fileinit(); 		    // 初始化文件表
+        // virtio_disk_init(); // 初始化磁盘设备
         userinit(); 		// 启动第 0 个进程
 
         STATED.store(true, Ordering::SeqCst);
@@ -86,6 +87,7 @@ pub fn main(hartid: usize) {
     scheduler();
 
     // proc_test();
+    // allocator::kernel_heap_test();
 
     panic!("Shutdown!");
 }

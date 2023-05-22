@@ -1,4 +1,5 @@
 // 内核切换时保存内核的上下文
+#[repr(C)]
 pub struct Context {
     pub ra: usize, 
     pub sp: usize,

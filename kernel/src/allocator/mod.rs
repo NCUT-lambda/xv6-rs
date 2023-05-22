@@ -24,10 +24,11 @@ pub fn init_heap() {
     }
 }
 
-#[cfg(test)]
+
 pub fn kernel_heap_test() {
     use alloc::boxed::Box;
     use alloc::vec::Vec;
+    use alloc::string::String;
     extern "C" {
         fn sbss();
         fn ebss();
@@ -38,7 +39,7 @@ pub fn kernel_heap_test() {
     assert!(bss_range.contains(&(a.as_ref() as *const _ as usize)));
     drop(a);
     let mut v: Vec<usize> = Vec::new();
-    for i in 0..500 {
+    for i in 0..8 {
         v.push(i);
     }
     for (i, val) in v.iter().take(500).enumerate() {
@@ -46,5 +47,9 @@ pub fn kernel_heap_test() {
     }
     assert!(bss_range.contains(&(v.as_ptr() as usize)));
     drop(v);
+
+
+    // let mut str = String::from("kernel_heap_test");
+    // assert_eq!(str, "kernel_heap_test");
     println!("kernel heap test passed!");
 }

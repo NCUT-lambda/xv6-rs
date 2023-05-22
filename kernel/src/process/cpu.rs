@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 // CPU 控制块
 pub struct Cpu {
     pub proc: *mut Proc,    // 运行在此 cpu 上的进程，可以为空
-    context: Context,       // 内核调度器 scheduler() 线程的上下文
+    pub context: Context,       // 内核调度器 scheduler() 线程的上下文
     pub noff: isize,        // push_off() 的层数
     pub intena: bool,       // 在 push_off 之前中断是否开启
 }
