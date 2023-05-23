@@ -37,5 +37,5 @@ pub fn write(fd: usize, buf: &[u8]) -> isize {
 }
 
 pub fn exit(exit_code: i32) -> i32 {
-    sys_exit(exit_code)
+    sys_exit(exit_code) as i32
 }

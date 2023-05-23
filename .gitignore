@@ -1,4 +1,10 @@
 .vscode
+todo
+
 kernel/target
 kernel/Cargo.lock
 kernel/kernel.asm
+kernel/src/link_app.S
+
+user/target
+user/Cargo.lock
