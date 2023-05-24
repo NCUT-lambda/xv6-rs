@@ -13,8 +13,8 @@
 	.global trampoline
 trampoline:
 	.align 4
-	.global user_trap
-user_trap:
+	.global uservec
+uservec:
 
 	// save user a0 in sscratch
 	csrw sscratch, a0
@@ -59,8 +59,8 @@ user_trap:
 	# jump to usertrap(), which does not return
 	jr t0
 
-	.global user_return
-user_return:
+	.global userret
+userret:
 	# userret(pagetable) called by usertrapret() in trap.c to
 	# switch from kernel to user
 	# a0: user page table, for satp.

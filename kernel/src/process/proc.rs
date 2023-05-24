@@ -6,20 +6,17 @@ use core::{
 
 use crate::{
     fs::{File, Inode},
-    lock::{
-        sleeplock::Sleeplock,
-        spinlock::{pop_off, push_off, Spinlock},
-    },
+    lock::{sleeplock::Sleeplock, spinlock::Spinlock, push_off, pop_off},
     memory::{
         kalloc::{kalloc, kfree},
         memlayout::{kstack, TRAMPOLINE, TRAPFRAME},
         uvm::Uvm,
     },
     param::{NOFILE, NPROC},
-    riscv::{intr_get, Addr, PGSIZE, PTE_R, PTE_X, intr_on},
+    riscv::{intr_get, intr_on, Addr, PGSIZE, PTE_R, PTE_X},
     string::memset,
     sync::upcell::UPCell,
-    trap::trapframe::Trapframe,
+    trap::{trap::usertrapret, trapframe::Trapframe},
 };
 extern crate alloc;
 
@@ -34,7 +31,6 @@ use super::{
 
 extern "C" {
     fn trampoline();
-    fn forkret();
 }
 
 // 分配 pid 的计数器
@@ -88,8 +84,8 @@ pub struct Proc {
     parent: *mut Proc, // 父进程
 
     // 这些是进程的私有属性，不必持有 p->lock
-    kstack: Addr,                  // 内核栈的虚拟地址
-    sz: usize,                     // 进程占用内存大小 (单位: 字节)
+    pub kstack: Addr,              // 内核栈的虚拟地址
+    pub sz: usize,                     // 进程占用内存大小 (单位: 字节)
     pub uvm: Uvm,                  // 进程页表
     pub trapframe: *mut Trapframe, // 用于切换到内核时保存用户信息
     context: Context,              // swtch() 从这切换进程
@@ -278,35 +274,31 @@ fn allocproc() -> *mut Proc {
 }
 
 static INITCODE: [u8; 52] = [
-    0x17, 0x05, 0x00, 0x00, 0x13, 0x05, 0x45, 0x02,
-    0x97, 0x05, 0x00, 0x00, 0x93, 0x85, 0x35, 0x02,
-    0x93, 0x08, 0x70, 0x00, 0x73, 0x00, 0x00, 0x00,
-    0x93, 0x08, 0x20, 0x00, 0x73, 0x00, 0x00, 0x00,
-    0xef, 0xf0, 0x9f, 0xff, 0x2f, 0x69, 0x6e, 0x69,
-    0x74, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00
+    0x17, 0x05, 0x00, 0x00, 0x13, 0x05, 0x45, 0x02, 0x97, 0x05, 0x00, 0x00, 0x93, 0x85, 0x35, 0x02,
+    0x93, 0x08, 0x70, 0x00, 0x73, 0x00, 0x00, 0x00, 0x93, 0x08, 0x20, 0x00, 0x73, 0x00, 0x00, 0x00,
+    0xef, 0xf0, 0x9f, 0xff, 0x2f, 0x69, 0x6e, 0x69, 0x74, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
 ];
 
 // 设置第一个用户程序
 pub fn userinit() {
-    let p = unsafe {&mut *(*INITPROC.get_mut())};
+    let p = unsafe { &mut *(*INITPROC.get_mut()) };
 
     // 为第一个用户程序内存，并且将 initcode 的指令复制到代码段
     p.uvm.uvmfirst(&INITCODE as *const u8, INITCODE.len());
 
     // 设置初始 context
-    let tf = unsafe {&mut *p.trapframe};
+    let tf = unsafe { &mut *p.trapframe };
     tf.epc = 0;
-    tf.x[2] = PGSIZE;   // sp
+    tf.x[2] = PGSIZE; // sp
 
-    // p.name = String::from("initcode");
+    p.name = String::from("initcode");
     // p.cwd = namei("/");
 
     p.state = ProcState::Runable;
 
     p.lock.release();
 }
-
 
 pub fn sched() {
     extern "C" {
@@ -329,7 +321,9 @@ pub fn sched() {
     }
 
     let intena = mc.intena;
-    unsafe { switch(&mut p.context, &mc.context); }
+    unsafe {
+        switch(&mut p.context, &mc.context);
+    }
     mc.intena = intena;
 }
 
@@ -337,7 +331,7 @@ pub fn scheduler() {
     extern "C" {
         fn switch(old: *mut Context, new: *const Context);
     }
-    let c = unsafe {&mut *mycpu()};
+    let c = unsafe { &mut *mycpu() };
     let proc = PROC.get_mut().as_mut_ptr();
 
     c.proc = null_mut();
@@ -346,13 +340,15 @@ pub fn scheduler() {
         intr_on();
 
         for i in 0..NPROC {
-            let p = unsafe {&mut *proc.add(i)};
+            let p = unsafe { &mut *proc.add(i) };
             p.lock.acquire();
             if p.state == ProcState::Runable {
-                // 
+                //
                 p.state = ProcState::Running;
                 c.proc = p;
-                unsafe { switch(&mut c.context, &p.context); }
+                unsafe {
+                    switch(&mut c.context, &p.context);
+                }
 
                 c.proc = null_mut();
             }
@@ -389,16 +385,25 @@ pub fn sleep<T>(chan: *mut T, lk: *mut Spinlock) {
 }
 
 pub fn wakeup<T>(chan: *mut T) {
-    let proc = PROC.get_mut();
-    for p in proc {
-        if (p as *mut Proc) != myproc() {
-            p.lock.acquire();
-            if p.state == ProcState::Sleeping && p.chan == chan as *mut u8 {
-                p.state = ProcState::Runable;
-            }
-            p.lock.release();
-        }
+    let mut proc = PROC.get_mut();
+    for p in proc.iter_mut() {
+        // if (p as *mut Proc) != myproc() {
+        //     p.lock.acquire();
+        //     if p.state == ProcState::Sleeping && p.chan == chan as *mut u8 {
+        //         p.state = ProcState::Runable;
+        //     }
+        //     p.lock.release();
+        // }
     }
+}
+
+#[no_mangle]
+fn forkret() {
+    let p = unsafe { &mut *myproc() };
+
+    p.lock.release();
+
+    usertrapret();
 }
 
 pub fn proc_test() {

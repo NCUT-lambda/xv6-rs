@@ -27,14 +27,13 @@ kernel-bin : kernel-elf
 user: 
 	@cd user && make build
 
-CPUS := 3
+CPUS := 1
 
 qemu : kernel-bin user
 	qemu-system-riscv64 \
 	-M 128m \
 	-smp $(CPUS) \
     -machine virt \
-	-global virtio-mmio.force-legacy=false \
     -nographic \
     -bios $(BOOTLOADER) \
     -device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)

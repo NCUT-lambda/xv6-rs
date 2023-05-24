@@ -1,5 +1,5 @@
 pub const NPROC: usize = 64; // 最大进程数
-pub const NCPU: usize = 8; // 最大 cpu 数
+pub const NCPU: usize = 3; // 最大 cpu 数
 pub const NOFILE: usize = 16; // 每个进程打开的最多文件数
 pub const NFILE: usize = 100; // 系统最多打开的文件数
 pub const NINODE: usize = 50; // 最多可用的 inode 数

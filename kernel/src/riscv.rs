@@ -41,11 +41,6 @@ pub fn r_tp() -> usize {
 }
 
 #[inline]
-pub fn w_tp(x: usize) {
-    unsafe { asm!("mv tp, {}", in(reg) x) }
-}
-
-#[inline]
 pub fn sfence_vma() {
     unsafe { asm!("sfence.vma zero, zero") }
 }

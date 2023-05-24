@@ -8,10 +8,3 @@ use core::arch::global_asm;
 
 
 pub use proc::{userinit, scheduler};
-
-
-
-#[no_mangle]
-fn forkret() {
-
-}

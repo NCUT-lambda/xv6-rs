@@ -7,6 +7,8 @@ use riscv::register::sstatus;
 
 use crate::process::cpu::{mycpu, Cpu};
 
+use super::{push_off, pop_off};
+
 pub struct Spinlock {
     locked: AtomicBool,
 
@@ -59,28 +61,13 @@ impl Spinlock {
     }
 }
 
-pub fn push_off() {
-    let old = sstatus::read().sie();
+pub fn spinlock_test() {
+    let mut lk = Spinlock::new("test");
 
-    unsafe { sstatus::clear_sie() }
-    let mut mc = unsafe { &mut *mycpu() };
+    lk.acquire();
+    assert!(lk.holding());
+    lk.release();
+    assert!(!lk.holding());
 
-    if mc.noff == 0 {
-        mc.intena = old;
-    }
-    mc.noff += 1;
-}
-
-pub fn pop_off() {
-    let mc: &mut Cpu = unsafe { transmute(mycpu()) };
-    if sstatus::read().sie() {
-        panic!("pop_off - interruptible");
-    }
-    if mc.noff < 1 {
-        panic!("pop_off");
-    }
-    mc.noff -= 1;
-    if mc.noff == 0 && mc.intena {
-        unsafe { sstatus::set_sie() }
-    }
+    println!("spinlock_test passed!");
 }

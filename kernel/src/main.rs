@@ -1,13 +1,19 @@
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
-#![feature(alloc_error_handler)]
+#![feature(const_mut_refs)]
+#![feature(allocator_api)]
 #![allow(unused)]
+#![feature(alloc_error_handler)]
+#![feature(sync_unsafe_cell)]
 
 use core::{
     arch::global_asm,
-    sync::atomic::{fence, AtomicBool, Ordering},
+    sync::atomic::{fence, AtomicBool, Ordering}, cell::{Cell, UnsafeCell},
 };
+
+use process::proc::Proc;
+use sync::upcell::UPCell;
 
 use crate::{
     console::{consoleinit, printfinit},
@@ -21,7 +27,10 @@ use crate::{
     process::{cpu::cpuid, proc::{procinit, proc_test}, scheduler, userinit},
     sbi::start_hart,
     trap::{plicinit, plicinithart, trapinit, trapinithart},
+    riscv::r_tp,
 };
+
+extern crate alloc;
 
 #[macro_use]
 mod console;
@@ -39,23 +48,42 @@ pub mod sync;
 mod driver;
 mod fs;
 pub mod lock;
-mod memory;
+pub mod memory;
 pub mod process;
-mod syscall;
-mod trap;
-mod exec;
+pub mod syscall;
+pub mod trap;
+pub mod exec;
 
 global_asm!(include_str!("entry.S"));
 global_asm!(include_str!("link_app.S"));
 
-static STATED: AtomicBool = AtomicBool::new(false);
+static STARTED: AtomicBool = AtomicBool::new(false);
+static FIRST: AtomicBool = AtomicBool::new(true);
+static SECOND: AtomicBool = AtomicBool::new(false);
+
+use lazy_static::lazy_static;
+lazy_static! {
+    static ref A: UPCell<Proc> = UPCell::new(Proc::new());
+}
+
+extern "C" {
+    fn boot_stack_bottom();
+    fn boot_stack_top();
+}
+
+use crate::riscv::r_sp;
 
 #[no_mangle]
-pub fn main(hartid: usize) {
+pub fn main(sp: usize) {
     clear_bss();
-    // start_hart(hartid);
+    allocator::init_heap();
+    // start_hart();
 
-    if cpuid() == 0 {
+    println!("{:#x} {:#x}, {:#x}",sp, r_sp(), boot_stack_bottom as usize);
+    
+
+    if FIRST.swap(false, Ordering::SeqCst){
+        println!("hart_id: {}", r_tp());
         consoleinit(); 		// 初始化控制台
         printfinit();
         print_logo();
@@ -64,30 +92,33 @@ pub fn main(hartid: usize) {
         kinit(); 			// 初始化物理页分配器
         kvminit(); 			// 创建内核页表
         kvminithart(); 		// 打开分页管理
+        use crate::riscv::r_sp;
+        println!("{:#x}", r_sp());
         procinit(); 		// 初始化进程表
         trapinit(); 		// 中断初始化
         trapinithart(); 	// 设置中断向量
         plicinit(); 		// 开启中断控制器
         plicinithart(); 	// 向 PLIC 请求设备中断
-        // binit(); 		    // 初始化缓冲区
-        // iinit(); 		    // 初始化 inode 表
-        // fileinit(); 		    // 初始化文件表
-        // virtio_disk_init(); // 初始化磁盘设备
-        userinit(); 		// 启动第 0 个进程
+        // // binit(); 		    // 初始化缓冲区
+        // // iinit(); 		    // 初始化 inode 表
+        // // fileinit(); 		    // 初始化文件表
+        // // virtio_disk_init(); // 初始化磁盘设备
+        userinit(); 		// 初始化第 0 个进程
 
-        STATED.store(true, Ordering::SeqCst);
+        STARTED.store(true, Ordering::SeqCst);
     } else {
-        while !STATED.load(Ordering::SeqCst) {}
+        while !STARTED.load(Ordering::SeqCst) {}
 
         println!("hart {} starting...", cpuid());
         kvminithart();
         trapinithart();
         plicinithart();
+        SECOND.store(true, Ordering::SeqCst);
     }
-    scheduler();
+    // scheduler();
 
-    // proc_test();
-    // allocator::kernel_heap_test();
+    // while !SECOND.load(Ordering::SeqCst){}
+
 
     panic!("Shutdown!");
 }

@@ -1,12 +1,11 @@
-use core::ptr::null_mut;
+use core::{ptr::null_mut};
 use lazy_static::*;
 use rustsbi::spec::base::impl_id::KVM;
 
 use crate::{
     lock::spinlock::Spinlock,
     riscv::{Addr, PGSIZE},
-    string::memset,
-    sync::upcell::UPCell,
+    string::memset, sync::upcell::UPCell,
 };
 
 use super::{memlayout::PHYSTOP, pgroundup};
@@ -16,6 +15,7 @@ extern "C" {
 }
 
 #[derive(Clone, Copy)]
+#[repr(C)]
 struct Run {
     next: *mut Run,
 }

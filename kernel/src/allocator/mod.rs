@@ -25,7 +25,7 @@ pub fn init_heap() {
 }
 
 
-pub fn kernel_heap_test() {
+pub fn allocator_test() {
     use alloc::boxed::Box;
     use alloc::vec::Vec;
     use alloc::string::String;

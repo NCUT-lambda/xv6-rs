@@ -7,7 +7,7 @@ global_asm!(include_str!("trampoline.S"));
 global_asm!(include_str!("kernelvec.S"));
 
 mod plic;
-mod trap;
+pub mod trap;
 pub mod trapframe;
 
 pub use plic::plicinit;
