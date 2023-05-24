@@ -14,10 +14,19 @@ pub fn intr_off() {
     unsafe {sstatus::clear_sie()};
 }
 
-// 中断时候开启
+// 中断是否开启
 #[inline]
 pub fn intr_get() -> bool {
-    unsafe {sstatus::read().sie()}
+    // unsafe {sstatus::read().sie()}
+    unsafe {
+        let x: usize;
+        asm!{
+            "csrr {}, sstatus",
+            out(reg) x
+        };
+        (x & 1 << 1) != 0
+    }
+
 }
 
 

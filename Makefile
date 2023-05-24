@@ -38,7 +38,7 @@ qemu : kernel-bin user
     -bios $(BOOTLOADER) \
     -device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)
 
-qemu-gdb : kernel-bin
+qemu-gdb : kernel-bin user
 	@echo "default remote debug port is 1234."
 	qemu-system-riscv64 \
 	-M 128m \

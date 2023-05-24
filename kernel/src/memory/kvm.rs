@@ -1,13 +1,13 @@
-
 use crate::{
     param::NPROC,
     riscv::{sfence_vma, Addr, PGSIZE, PTE_R, PTE_W, PTE_X},
-    string::memset, sync::upcell::UPCell,
+    string::memset,
+    sync::upcell::UPCell,
 };
 
 use super::{
     kalloc::kalloc,
-    memlayout::{kstack, KERNBASE, PHYSTOP, PLIC, TRAMPOLINE, UART0, VIRTIO0},
+    memlayout::{kstack, KERNBASE, PHYSTOP, PLIC, TRAMPOLINE, UART0, VIRTIO0, KERNEL_STACK_SIZE},
     pagetable::PagetableT,
 };
 use lazy_static::*;
@@ -45,6 +45,8 @@ impl Kvm {
         self.kvmmap(etext, etext, PHYSTOP - etext, PTE_R | PTE_W);
 
         self.kvmmap(TRAMPOLINE, trampoline as Addr, PGSIZE, PTE_R | PTE_X);
+
+        self.proc_mapstacks();
     }
 
     fn kvmmap(&mut self, va: Addr, pa: Addr, sz: Addr, perm: usize) {
@@ -53,8 +55,20 @@ impl Kvm {
         }
         // println!("kvmmap: va: {:#x}, pa: {:#x}", va, pa);
     }
-}
 
+    // 为每个进程的内核栈分配一个页面
+    // 并将其映射在内存的高地址，跟随一个保护页（guard page）
+    fn proc_mapstacks(&mut self) {
+        for p in 0..NPROC {
+            let pa = kalloc();
+            if pa == 0 {
+                panic!("kalloc");
+            }
+            let va = kstack(p);
+            self.kvmmap(va, pa, KERNEL_STACK_SIZE, PTE_R | PTE_W);
+        }
+    }
+}
 
 lazy_static! {
     static ref KVM: UPCell<Kvm> = UPCell::new(Kvm::new());
@@ -74,20 +88,6 @@ pub fn kvminithart() {
     sfence_vma();
 
     println!("kvminithart success!");
-}
-
-// 为每个进程的内核栈分配一个页面
-// 并将其映射在内存的高地址，跟随一个保护页（guard page）
-pub fn proc_mapstacks() {
-    let kvm = KVM.get_mut();
-    for p in 0..NPROC {
-        let pa = kalloc();
-        if pa == 0 {
-            panic!("kalloc");
-        }
-        let va = kstack(p);
-        kvm.kvmmap(va, pa, PGSIZE, PTE_R | PTE_W);
-    }
 }
 
 pub fn kvmtest() {

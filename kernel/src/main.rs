@@ -13,6 +13,7 @@ use core::{
 };
 
 use process::proc::Proc;
+use ::riscv::register::sstatus;
 use sync::upcell::UPCell;
 
 use crate::{
@@ -27,7 +28,7 @@ use crate::{
     process::{cpu::cpuid, proc::{procinit, proc_test}, scheduler, userinit},
     sbi::start_hart,
     trap::{plicinit, plicinithart, trapinit, trapinithart},
-    riscv::r_tp,
+    riscv::{r_tp, intr_get, intr_off, intr_on},
 };
 
 extern crate alloc;
@@ -79,11 +80,8 @@ pub fn main(sp: usize) {
     allocator::init_heap();
     // start_hart();
 
-    println!("{:#x} {:#x}, {:#x}",sp, r_sp(), boot_stack_bottom as usize);
-    
 
     if FIRST.swap(false, Ordering::SeqCst){
-        println!("hart_id: {}", r_tp());
         consoleinit(); 		// 初始化控制台
         printfinit();
         print_logo();
@@ -92,8 +90,6 @@ pub fn main(sp: usize) {
         kinit(); 			// 初始化物理页分配器
         kvminit(); 			// 创建内核页表
         kvminithart(); 		// 打开分页管理
-        use crate::riscv::r_sp;
-        println!("{:#x}", r_sp());
         procinit(); 		// 初始化进程表
         trapinit(); 		// 中断初始化
         trapinithart(); 	// 设置中断向量
@@ -115,7 +111,8 @@ pub fn main(sp: usize) {
         plicinithart();
         SECOND.store(true, Ordering::SeqCst);
     }
-    // scheduler();
+
+    scheduler();
 
     // while !SECOND.load(Ordering::SeqCst){}
 

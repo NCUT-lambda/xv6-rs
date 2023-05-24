@@ -9,14 +9,14 @@ use crate::{
     lock::{sleeplock::Sleeplock, spinlock::Spinlock, push_off, pop_off},
     memory::{
         kalloc::{kalloc, kfree},
-        memlayout::{kstack, TRAMPOLINE, TRAPFRAME},
+        memlayout::{kstack, TRAMPOLINE, TRAPFRAME, KERNEL_STACK_SIZE},
         uvm::Uvm,
     },
     param::{NOFILE, NPROC},
-    riscv::{intr_get, intr_on, Addr, PGSIZE, PTE_R, PTE_X},
+    riscv::{intr_get, intr_on, Addr, PGSIZE, PTE_R, PTE_X, PTE_W},
     string::memset,
     sync::upcell::UPCell,
-    trap::{trap::usertrapret, trapframe::Trapframe},
+    trap::{usertrapret, trapframe::Trapframe},
 };
 extern crate alloc;
 
@@ -160,7 +160,7 @@ impl Proc {
         // 紧接着 trapframe 页面映射 trapoline 页面
         if uvm
             .pagetable
-            .mappages(TRAPFRAME, PGSIZE, self.trapframe as Addr, PTE_R | PTE_X)
+            .mappages(TRAPFRAME, PGSIZE, self.trapframe as Addr, PTE_R | PTE_W)
             < 0
         {
             uvm.uvmfree(0);
@@ -263,7 +263,7 @@ fn allocproc() -> *mut Proc {
             // 进程会从这里返回用户空间
             memset(&mut p.context, 0, size_of::<Context>());
             p.context.ra = forkret as usize;
-            p.context.sp = p.kstack + PGSIZE;
+            p.context.sp = p.kstack + KERNEL_STACK_SIZE;
 
             return p;
         } else {
@@ -298,6 +298,8 @@ pub fn userinit() {
     p.state = ProcState::Runable;
 
     p.lock.release();
+
+    println!("userinit success!");
 }
 
 pub fn sched() {
@@ -327,12 +329,13 @@ pub fn sched() {
     mc.intena = intena;
 }
 
+#[no_mangle]
 pub fn scheduler() {
     extern "C" {
         fn switch(old: *mut Context, new: *const Context);
     }
     let c = unsafe { &mut *mycpu() };
-    let proc = PROC.get_mut().as_mut_ptr();
+    let proc = PROC.get();
 
     c.proc = null_mut();
     loop {
@@ -340,7 +343,7 @@ pub fn scheduler() {
         intr_on();
 
         for i in 0..NPROC {
-            let p = unsafe { &mut *proc.add(i) };
+            let p = unsafe {&mut (*proc)[i]};
             p.lock.acquire();
             if p.state == ProcState::Runable {
                 //

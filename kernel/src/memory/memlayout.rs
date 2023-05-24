@@ -42,7 +42,9 @@ pub const PHYSTOP: Addr = 0x88000000;
 pub const TRAMPOLINE: Addr = MAXVA - PGSIZE;
 
 pub fn kstack(p: usize) -> Addr {
-    TRAMPOLINE - (p + 1) * 2 * PGSIZE
+    TRAMPOLINE - (p + 1) * (KERNEL_STACK_SIZE + PGSIZE)
 }
 
 pub const TRAPFRAME: Addr = TRAMPOLINE - PGSIZE;
+
+pub const KERNEL_STACK_SIZE: usize = 4 * PGSIZE;
