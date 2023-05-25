@@ -37,6 +37,7 @@ impl PagetableT {
 
     // 返回一个虚拟地址对应页表项指针
     // alloc 为 true 时会自动创建缺失的页表
+    #[no_mangle]
     pub fn walk(&mut self, va: Addr, alloc: bool) -> *mut PteT {
         if va >= MAXVA {
             panic!("walk");

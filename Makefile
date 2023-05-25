@@ -17,7 +17,7 @@ KERNEL_ENTRY_PA = 0x80200000
 fmt :
 	@cd $K && cargo fmt
 
-kernel-elf : 
+kernel-elf : user
 	@cd $K && cargo build --release
 
 kernel-bin : kernel-elf
@@ -27,9 +27,9 @@ kernel-bin : kernel-elf
 user: 
 	@cd user && make build
 
-CPUS := 1
+CPUS := 3
 
-qemu : kernel-bin user
+qemu : user kernel-bin 
 	qemu-system-riscv64 \
 	-M 128m \
 	-smp $(CPUS) \

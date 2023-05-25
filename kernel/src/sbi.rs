@@ -44,6 +44,6 @@ pub fn shutdown() -> ! {
 
 pub fn start_hart() {
     for i in 0..3 {
-        sbi_rt::hart_start(i, KERNBASE, 0x1234);
+        sbi_rt::hart_start(i, KERNBASE, 0x0);
     }
 }

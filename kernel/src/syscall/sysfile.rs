@@ -1,4 +1,4 @@
-use crate::process::proc::myproc;
+use crate::{process::proc::myproc, riscv::{intr_off, intr_on}};
 
 const FD_STDIN: usize = 0;
 const FD_STDOUT: usize = 1;
@@ -14,4 +14,10 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> usize {
             panic!("unsupported fd in sys_write");
         }
     }
+}
+
+pub fn write_test() {
+    intr_off();
+    println!("Hello world");
+    intr_on();
 }

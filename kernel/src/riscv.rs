@@ -17,16 +17,7 @@ pub fn intr_off() {
 // 中断是否开启
 #[inline]
 pub fn intr_get() -> bool {
-    // unsafe {sstatus::read().sie()}
-    unsafe {
-        let x: usize;
-        asm!{
-            "csrr {}, sstatus",
-            out(reg) x
-        };
-        (x & 1 << 1) != 0
-    }
-
+    unsafe {sstatus::read().sie()}
 }
 
 

@@ -47,4 +47,5 @@ pub fn kstack(p: usize) -> Addr {
 
 pub const TRAPFRAME: Addr = TRAMPOLINE - PGSIZE;
 
-pub const KERNEL_STACK_SIZE: usize = 4 * PGSIZE;
+pub const KERNEL_STACK_SIZE: usize = 16 * PGSIZE;
+pub const USER_STACK_SIZE: usize = 4 * PGSIZE;

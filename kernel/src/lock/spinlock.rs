@@ -5,7 +5,7 @@ use core::{
 };
 use riscv::register::sstatus;
 
-use crate::process::cpu::{mycpu, Cpu};
+use crate::{process::cpu::{mycpu, Cpu}, riscv::r_tp};
 
 use super::{push_off, pop_off};
 

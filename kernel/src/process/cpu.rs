@@ -39,5 +39,5 @@ pub fn cpuid() -> usize {
 // 返回一个 struct Cpu
 pub fn mycpu() -> *mut Cpu {
     let id = cpuid();
-	&mut CPUS.get_mut()[id]
+	&mut (CPUS.get_mut()[id])
 }

@@ -12,10 +12,8 @@ _start:
 	la sp, boot_stack_bottom
 	li t0, BOOT_STACK_SIZE
 	addi a0, a0, 1
-	mul t1, t0, a0
-	add sp, sp, t1
-	la a0, boot_stack_bottom
-	add a0, a0, t1
+	mul t0, t0, a0
+	add sp, sp, t0
 	call main
 
 	.section .bss.stack

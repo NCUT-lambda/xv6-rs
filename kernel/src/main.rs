@@ -6,6 +6,7 @@
 #![allow(unused)]
 #![feature(alloc_error_handler)]
 #![feature(sync_unsafe_cell)]
+#![feature(ascii_char)]
 
 use core::{
     arch::global_asm,
@@ -17,7 +18,6 @@ use ::riscv::register::sstatus;
 use sync::upcell::UPCell;
 
 use crate::{
-    console::{consoleinit, printfinit},
     driver::virtio_disk_init,
     fs::{binit, fileinit, iinit},
     logo::print_logo,
@@ -28,13 +28,13 @@ use crate::{
     process::{cpu::cpuid, proc::{procinit, proc_test}, scheduler, userinit},
     sbi::start_hart,
     trap::{plicinit, plicinithart, trapinit, trapinithart},
-    riscv::{r_tp, intr_get, intr_off, intr_on},
+    riscv::{r_tp, intr_get, intr_off, intr_on}, syscall::sysfile::write_test, printf::{printfinit, consoleinit},
 };
 
 extern crate alloc;
 
 #[macro_use]
-mod console;
+mod printf;
 mod lang_items;
 mod logo;
 mod param;
@@ -75,13 +75,14 @@ extern "C" {
 use crate::riscv::r_sp;
 
 #[no_mangle]
-pub fn main(sp: usize) {
+pub fn main() {
     clear_bss();
     allocator::init_heap();
     // start_hart();
 
 
     if FIRST.swap(false, Ordering::SeqCst){
+        println!("tp: {}", r_tp());
         consoleinit(); 		// 初始化控制台
         printfinit();
         print_logo();
@@ -111,7 +112,6 @@ pub fn main(sp: usize) {
         plicinithart();
         SECOND.store(true, Ordering::SeqCst);
     }
-
     scheduler();
 
     // while !SECOND.load(Ordering::SeqCst){}
