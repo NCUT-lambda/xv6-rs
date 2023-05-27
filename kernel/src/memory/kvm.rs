@@ -76,7 +76,7 @@ lazy_static! {
 
 pub fn kvminit() {
     KVM.get_mut().kvmmake();
-    println!("kvminit success!");
+    // println!("kvminit success!");
 }
 
 #[no_mangle]
@@ -87,7 +87,7 @@ pub fn kvminithart() {
 
     sfence_vma();
 
-    println!("kvminithart success!");
+    // println!("kvminithart success!");
 }
 
 pub fn kvmtest() {

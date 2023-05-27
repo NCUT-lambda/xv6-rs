@@ -14,7 +14,7 @@ pub fn plicinit() {
     // 设置中断请求 (IRQ) 优先级非0，否则处于关闭状态
     write(PLIC + UART0_IRQ * 4, 1u32);
     write(PLIC + VIRTIO0_IRQ * 4, 1u32);
-    println!("plicinit success!");
+    // println!("plicinit success!");
 }
 
 pub fn plicinithart() {
@@ -28,5 +28,5 @@ pub fn plicinithart() {
 
     // 将此 hart 的 S 模式优先级阈值设置为 0。
     write(plic_spriority(hart), 0u32);
-    println!("plicinithart success!");
+    // println!("plicinithart success!");
 }

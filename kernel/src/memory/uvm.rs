@@ -222,7 +222,6 @@ impl Uvm {
 				n = len;
 			}
 			memmove((pa0 + dstva - va0) as *mut u8, src as *const u8, n);
-
 			len -= n;
 			src += n;
 			dstva = va0 + PGSIZE;

@@ -145,10 +145,10 @@ pub fn devintr() {}
 
 
 pub fn trapinit() {
-    println!("trapinit success!");
+    // println!("trapinit success!");
 }
 
 pub fn trapinithart() {
     unsafe { stvec::write(kernelvec as Addr, riscv::register::utvec::TrapMode::Direct) }
-    println!("trapinithart success!");
+    // println!("trapinithart success!");
 }

@@ -29,14 +29,18 @@ fn syscall(id: usize, args: [usize; 3]) -> isize {
     ret
 }
 
-pub fn sys_write(fd: usize, buffer: &[u8]) -> isize {
-    syscall(SYS_WRITE, [fd, buffer.as_ptr() as usize, buffer.len()])
+pub fn sys_write(buf: &[u8]) -> isize {
+    syscall(SYS_WRITE, [buf.as_ptr() as usize, buf.len(), 0])
 }
 
-pub fn sys_exit(exit_code: i32) -> isize {
-    syscall(SYS_EXIT, [exit_code as usize, 0, 0])
+pub fn sys_read(buf: &mut [u8]) -> isize {
+    syscall(SYS_READ, [buf.as_ptr() as usize, buf.len(), 0])
 }
 
 pub fn sys_exec(path: &[u8]) -> isize {
     syscall(SYS_EXEC, [path.as_ptr() as usize, path.len(), 0])
+}
+
+pub fn sys_exit(exit_code: i32) -> isize {
+    syscall(SYS_EXIT, [exit_code as usize, 0, 0])
 }

@@ -9,6 +9,8 @@ BINS := $(patsubst $(APP_DIR)/%.rs, $(TARGET_DIR)/%.bin, $(APPS))
 OBJCOPY = rust-objcopy --binary-architecture=riscv64
 OBJDUMP = rust-objdump
 
+.PHONY: fmt clean
+
 fmt :
 	cargo fmt
 
@@ -24,3 +26,4 @@ build : elf
 
 clean :
 	cargo clean
+	-rm -f Cargo.lock

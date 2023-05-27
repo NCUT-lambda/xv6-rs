@@ -12,13 +12,13 @@ pub struct Elfhdr {
     type_: u16,
     machine: u16,
     version: u32,
-    entry: usize,
-    phoff: usize,
+    pub entry: usize,
+    pub phoff: usize,
     shoff: usize,
     flags: u32,
     ehsize: u16,
     phentsize: u16,
-    phnum: u16,
+    pub phnum: u16,
     shentsize: u16,
     shnum: u16,
     shstrndx: u16,
@@ -27,14 +27,14 @@ pub struct Elfhdr {
 // program section header
 #[repr(C)]
 pub struct Proghdr {
-    type_: u32,
-    flags: u32,
-    off: usize,
-    vaddr: usize,
-    paddr: usize,
-    filesz: usize,
-    memsz: usize,
-    align: usize,
+    pub type_: u32,
+    pub flags: u32,
+    pub off: usize,
+    pub vaddr: usize,
+    pub paddr: usize,
+    pub filesz: usize,
+    pub memsz: usize,
+    pub align: usize,
 }
 
 // values for proghdr type

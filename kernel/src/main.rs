@@ -13,11 +13,13 @@ use core::{
     sync::atomic::{fence, AtomicBool, Ordering}, cell::{Cell, UnsafeCell},
 };
 
+use alloc::string::String;
 use process::proc::Proc;
 use ::riscv::register::sstatus;
 use sync::upcell::UPCell;
 
 use crate::{
+    exec::{exec, exec_app},
     driver::virtio_disk_init,
     fs::{binit, fileinit, iinit},
     logo::print_logo,
@@ -28,13 +30,13 @@ use crate::{
     process::{cpu::cpuid, proc::{procinit, proc_test}, scheduler, userinit},
     sbi::start_hart,
     trap::{plicinit, plicinithart, trapinit, trapinithart},
-    riscv::{r_tp, intr_get, intr_off, intr_on}, syscall::sysfile::write_test, printf::{printfinit, consoleinit},
+    riscv::{r_tp, intr_get, intr_off, intr_on}, syscall::sysfile::write_test, console::{printfinit, consoleinit},
 };
 
 extern crate alloc;
 
 #[macro_use]
-mod printf;
+mod console;
 mod lang_items;
 mod logo;
 mod param;
@@ -100,7 +102,7 @@ pub fn main() {
         // // iinit(); 		    // 初始化 inode 表
         // // fileinit(); 		    // 初始化文件表
         // // virtio_disk_init(); // 初始化磁盘设备
-        userinit(); 		// 初始化第 0 个进程
+        // userinit(); 		// 初始化第 0 个进程
 
         STARTED.store(true, Ordering::SeqCst);
     } else {
@@ -112,9 +114,9 @@ pub fn main() {
         plicinithart();
         SECOND.store(true, Ordering::SeqCst);
     }
-    scheduler();
+    // scheduler();
+    exec_app("sh");
 
-    // while !SECOND.load(Ordering::SeqCst){}
 
 
     panic!("Shutdown!");

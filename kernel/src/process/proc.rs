@@ -60,7 +60,7 @@ lazy_static! {
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
-enum ProcState {
+pub enum ProcState {
     Unused,
     Used,
     Sleeping,
@@ -74,7 +74,7 @@ pub struct Proc {
     pub lock: Spinlock,
 
     // 当使用这些时必须持有 p->lock
-    state: ProcState, // 进程状态
+    pub state: ProcState, // 进程状态
     chan: *mut u8,    // 如果非空，处于休眠态并等待睡眠锁 chan
     killed: bool,     // 如果为 true，进程被杀死
     xstate: isize,    // 退出时的状态，会返回给正在等待的父进程
@@ -138,11 +138,11 @@ impl Proc {
 
     // 创建一个用户程序的 struct Uvm，不含用户物理内存
     // 但是包含 trapoline 和 trapframe 两个页面
-    fn proc_uvm(&mut self) -> Uvm {
+    pub fn proc_uvm(&mut self) -> isize {
         // 创建一个空页表
         let mut uvm = Uvm::from_pagetable(Uvm::uvmcreate());
         if !uvm.valid() {
-            return uvm;
+            return -1;
         }
 
         // 映射 trampoline 页面到虚拟地址的最高处
@@ -154,7 +154,7 @@ impl Proc {
             < 0
         {
             uvm.uvmfree(0);
-            return Uvm::new();
+            return -1;
         }
 
         // 紧接着 trapframe 页面映射 trapoline 页面
@@ -164,10 +164,12 @@ impl Proc {
             < 0
         {
             uvm.uvmfree(0);
-            return Uvm::new();
+            return -1;
         }
 
-        uvm
+        self.uvm =uvm;
+
+        0
     }
 
     // 释放一个进程的 struct Uvm，并且会释放所有的物理内存
@@ -203,7 +205,7 @@ pub fn procinit() {
         proc[i].kstack = kstack(i);
     }
 
-    println!("procinit success!");
+    // println!("procinit success!");
 }
 
 // 返回当前进程的指针，否则返回空指针
@@ -232,7 +234,7 @@ pub fn allocpid() -> usize {
 // 如果找到就将其初始化
 // 返回时会持有 p->lock
 // 如果没有找到空闲进程，或者初始化失败（内存不足），就返回空指针
-fn allocproc() -> *mut Proc {
+pub fn allocproc() -> *mut Proc {
     let proc = PROC.get_mut();
     for i in 0..NPROC {
         let p = &mut proc[i];
@@ -252,8 +254,7 @@ fn allocproc() -> *mut Proc {
             }
 
             // 创建一个空的用户页表
-            p.uvm = p.proc_uvm();
-            if !p.uvm.valid() {
+            if p.proc_uvm() < 0 {
                 p.freeproc();
                 p.lock.release();
                 return null_mut();
@@ -423,7 +424,7 @@ pub fn proc_test() {
     }
 
     // 创建一个空的用户页表
-    p.uvm = p.proc_uvm();
+    p.proc_uvm();
     if !p.uvm.valid() {
         panic!("error 2");
     }

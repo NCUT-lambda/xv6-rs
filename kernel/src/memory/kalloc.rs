@@ -80,7 +80,7 @@ lazy_static! {
 
 pub fn kinit() {
     KMEM.get_mut().freerange(ekernel as Addr, PHYSTOP);
-    println!("kinit success!");
+    // println!("kinit success!");
 }
 
 pub fn kalloc() -> Addr {

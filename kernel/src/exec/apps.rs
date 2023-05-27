@@ -4,11 +4,11 @@ extern "C" {
     fn _app_num();
 }
 
-pub const NAPPS: usize = 5;
+pub const NAPPS: usize = 1;
 
-static APPS: [&'static str; NAPPS] = ["init", "ls", "ps", "sh", "sleep"];
+static APPS: [&'static str; NAPPS] = ["sh"];
 
-pub fn get_app_data<'a>(name: &str) -> &'a [u8] {
+pub fn get_app_data(name: &str) -> &[u8] {
     let src = _app_num as *mut usize;
     let mut id = 0;
     for app in APPS {

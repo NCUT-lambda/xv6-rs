@@ -1,35 +1,27 @@
 K := kernel
 U := user
-L := bootloader
 
 TARGET := riscv64gc-unknown-none-elf
 MODE   := release
 
-BOOTLOADER = $L/rustsbi-qemu.bin
 KERNEL_ELF = $K/target/$(TARGET)/$(MODE)/kernel
 KERNEL_BIN = $(KERNEL_ELF).bin
-
-OBJCOPY = rust-objcopy --binary-architecture=riscv64
-OBJDUMP = rust-objdump
+BOOTLOADER = bootloader/rustsbi-qemu.bin
 
 KERNEL_ENTRY_PA = 0x80200000
 
-fmt :
-	@cd $K && cargo fmt
+.PHONY: kernel user clean
 
-kernel-elf : user
-	@cd $K && cargo build --release
+kernel:
+	@cd $K && make build
 
-kernel-bin : kernel-elf
-	$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $(KERNEL_BIN)
-	$(OBJDUMP) -S $(KERNEL_ELF) > $K/kernel.asm
-
-user: 
-	@cd user && make build
+user:
+	@cd $U && make build
 
 CPUS := 3
 
-qemu : user kernel-bin 
+
+qemu : user kernel
 	qemu-system-riscv64 \
 	-M 128m \
 	-smp $(CPUS) \
@@ -38,8 +30,8 @@ qemu : user kernel-bin
     -bios $(BOOTLOADER) \
     -device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)
 
-qemu-gdb : kernel-bin user
-	@echo "default remote debug port is 1234."
+qemu-gdb : user kernel
+	@echo "default remote debug port is 26000."
 	qemu-system-riscv64 \
 	-M 128m \
 	-smp $(CPUS) \
@@ -52,7 +44,6 @@ qemu-gdb : kernel-bin user
 gdb :
 	gdb-multiarch -ex 'file $(KERNEL_ELF)' -ex 'set arch riscv:rv64' -ex 'target remote localhost:26000'
 
-kernel-clean:
-	@cd $K && cargo clean
-
-clean: kernel-clean
+clean:
+	@cd $K && make clean
+	@cd $U && make clean

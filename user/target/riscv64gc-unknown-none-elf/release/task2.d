@@ -1,1 +1,0 @@
-/home/baise/Repos/xv6-rust/user/target/riscv64gc-unknown-none-elf/release/task2: /home/baise/Repos/xv6-rust/user/src/bin/task2.rs /home/baise/Repos/xv6-rust/user/src/console.rs /home/baise/Repos/xv6-rust/user/src/lang_items.rs /home/baise/Repos/xv6-rust/user/src/lib.rs /home/baise/Repos/xv6-rust/user/src/syscall.rs

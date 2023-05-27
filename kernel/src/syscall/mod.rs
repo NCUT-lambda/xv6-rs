@@ -1,6 +1,6 @@
 use crate::process::proc::myproc;
 
-use self::{sysfile::sys_write, sysproc::{sys_exit, sys_exec}};
+use self::{sysfile::{sys_write, sys_read}, sysproc::{sys_exit, sys_exec}};
 
 pub mod sysfile;
 pub mod sysproc;
@@ -26,7 +26,8 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> usize {
     let p = unsafe { &*myproc() };
 
     let ret = match syscall_id {
-        SYS_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
+        SYS_WRITE => sys_write(args[0] as *const u8, args[1]),
+        SYS_READ => sys_read(args[0] as *mut u8, args[1]),
         SYS_EXEC => sys_exec(args[0] as *const u8, args[1]),
         SYS_EXIT => sys_exit(args[0] as i32),
         _ => {
