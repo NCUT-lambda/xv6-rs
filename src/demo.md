@@ -41,4 +41,5 @@ $
 ```
 
 ## 视频演示
-<video src="images/MP4_20230815_104140VLOG.mp4">演示视频</video>
+
+[点击观看](https://ncut-lambda.github.io/xv6-rs/videos/run.mp4)
