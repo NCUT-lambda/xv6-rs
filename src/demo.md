@@ -39,3 +39,6 @@ $ xv6-rust
 xv6-rust
 $ 
 ```
+
+## 视频演示
+<video src="images/MP4_20230815_104140VLOG.mp4">演示视频</video>
