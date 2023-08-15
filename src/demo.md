@@ -21,7 +21,6 @@
 [rustsbi] pmp02: 0x80000000..0x80200000 (---)
 [rustsbi] pmp03: 0x80200000..0x88000000 (xwr)
 [rustsbi] pmp04: 0x88000000..0x00000000 (-wr)
-tp: 0
 __  ____     ____         ____  _   _ ____ _____ 
 \ \/ /\ \   / / /_       |  _ \| | | / ___|_   _|
  \  /  \ \ / / '_ \ _____| |_) | | | \___ \ | |  
@@ -36,7 +35,7 @@ $ hello world
 hello world
 $ shell
 shell
-$ pwd
-pwd
+$ xv6-rust
+xv6-rust
 $ 
 ```
